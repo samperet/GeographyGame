@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Geography Game </title>
+    <title>Geography Game with Country Highlight, Confetti, and Flags</title>
     <!-- Link to Google Fonts for Pacifico font -->
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <!-- Include the Canvas Confetti library -->
@@ -14,7 +14,7 @@
             overflow-x: hidden; /* Hide horizontal scrollbars */
         }
         body {
-            font-family: Montserrat, sans-serif;
+            font-family: Arial, sans-serif;
             text-align: center;
         }
         #splash-screen {
@@ -113,13 +113,13 @@
 <body>
     <!-- Splash Screen -->
     <div id="splash-screen">
-        <div id="splash-title">Geography Game</div>
+        <div id="splash-title">Geography Quiz</div>
         <button id="start-button">Start</button>
     </div>
 
     <!-- Game Container -->
     <div id="game-container">
-        <h1>Geography Game</h1>
+        <h1>Geography Game with Country Highlight, Confetti, and Flags</h1>
         <div id="country">Loading...</div>
         <img id="country-flag" src="" alt="Country Flag" />
         <div id="continent-buttons"></div>
@@ -193,11 +193,22 @@
                                 country: country.name.common,
                                 continent: continent,
                                 flagUrl: country.flags.svg || country.flags.png,
-                                geoJsonUrl: `https://raw.githubusercontent.com/johan/world.geo.json/master/countries/${country.cca3}.geo.json`
+                                code: country.cca3
                             });
                         }
                     });
-                    startGame();
+
+                    // Load custom.geo.json file containing all countries
+                    fetch('custom.geo.json')
+                        .then(response => response.json())
+                        .then(geojsonData => {
+                            countryLayer.addGeoJson(geojsonData);
+                            startGame();
+                        })
+                        .catch(error => {
+                            console.error('Error loading custom.geo.json:', error);
+                            alert('Failed to load map data.');
+                        });
                 })
                 .catch(error => {
                     console.error('Error fetching country data:', error);
@@ -223,7 +234,7 @@
                 disableAllButtons();
                 button.classList.add('correct');
                 playConfetti();
-                highlightCountry(currentCountry.geoJsonUrl);
+                highlightCountry(currentCountry.code);
                 setTimeout(startGame, 3000);
             } else {
                 resultDisplay.innerText = "Try again.";
@@ -259,25 +270,41 @@
             });
         }
 
-        function highlightCountry(geoJsonUrl) {
-            // Do not clear the previous highlight here
-            // Use a CORS proxy or host the GeoJSON files locally
-            const proxyUrl = 'https://cors-anywhere.herokuapp.com/';
-            countryLayer.loadGeoJson(proxyUrl + geoJsonUrl, null, () => {
-                countryLayer.setStyle({
-                    fillColor: "yellow",
-                    strokeColor: "black",
-                    strokeWeight: 1,
-                    fillOpacity: 0.5,
-                });
-            }, (error) => {
-                console.error('Error loading GeoJSON:', error);
+        function highlightCountry(countryCode) {
+            // Reset styles
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
+
+            // Set style for the selected country
+            countryLayer.setStyle(function(feature) {
+                if (feature.getProperty('ISO_A3') === countryCode) {
+                    return {
+                        fillColor: 'yellow',
+                        strokeColor: 'black',
+                        strokeWeight: 1,
+                        fillOpacity: 0.8
+                    };
+                } else {
+                    return {
+                        fillColor: 'gray',
+                        strokeColor: 'black',
+                        strokeWeight: 1,
+                        fillOpacity: 0.5
+                    };
+                }
             });
         }
 
         function clearCountryHighlight() {
-            countryLayer.forEach(feature => {
-                countryLayer.remove(feature);
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
             });
         }
 
