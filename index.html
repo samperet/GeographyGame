@@ -2,17 +2,130 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Geography Game with Country Highlight, Confetti, and Flags</title>
+    <title>Geography Game with Country Highlight, Confetti, Flags, and Simplified Map</title>
     <!-- Link to Google Fonts for Pacifico font -->
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <!-- Include the Canvas Confetti library -->
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
-        /* ... (Your existing CSS styles) ... */
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Hide horizontal scrollbars */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, #e0f7fa, #a5d6a7);
+            background-size: 400% 400%;
+            animation: backgroundAnimation 10s ease infinite;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        @keyframes backgroundAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #splash-title {
+            font-size: 60px;
+            margin-bottom: 10px;
+            font-family: 'Pacifico', cursive;
+            transform: rotate(-5deg);
+            background: linear-gradient(90deg, #9e6742, #66bb6a);
+            background-size: 200% 200%;
+            animation: textGradientAnimation 5s infinite;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+        }
+        @keyframes textGradientAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #start-button {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            margin: 20px;
+        }
+        #game-container {
+            display: none;
+            padding-top: 20px;
+        }
+        #country {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        #country-flag {
+            width: 100px;
+            height: auto;
+            margin-top: 10px;
+        }
+        .continent-button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        .continent-button.incorrect {
+            background-color: red;
+            cursor: default;
+        }
+        .continent-button.correct {
+            background-color: green;
+            cursor: default;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.5em;
+            min-height: 1.5em;
+        }
+        #map {
+            height: 500px;
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
     </style>
 </head>
 <body>
-    <!-- ... (Your existing HTML content) ... -->
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div id="splash-title">Geography Quiz</div>
+        <button id="start-button">Start</button>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <h1>Geography Game with Country Highlight, Confetti, Flags, and Simplified Map</h1>
+        <div id="country">Loading...</div>
+        <img id="country-flag" src="" alt="Country Flag" />
+        <div id="continent-buttons"></div>
+        <div id="result"></div>
+        <div id="map"></div>
+    </div>
 
     <script>
         const countryData = [];
@@ -44,6 +157,44 @@
         let map;
         let countryLayer;
 
+        const mapStyle = [
+            {
+                "featureType": "all",
+                "elementType": "labels",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "administrative",
+                "elementType": "geometry",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "poi",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "road",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "transit",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            }
+        ];
+
         startButton.addEventListener('click', () => {
             splashScreen.style.display = 'none';
             gameContainer.style.display = 'block';
@@ -56,8 +207,15 @@
                 center: { lat: 20, lng: 0 },
                 gestureHandling: 'auto',
                 zoomControl: true,
+                styles: mapStyle
             });
             countryLayer = new google.maps.Data();
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
             countryLayer.setMap(map);
             createButtons();
             loadCountryData();
@@ -69,7 +227,7 @@
                 .then(response => response.json())
                 .then(data => {
                     data.forEach(country => {
-                        if (country.name && country.name.common && country.region && country.cca3 && country.flags) {
+                        if (country.name && country.name.common && country.region && country.flags) {
                             let continent = regionMapping[country.region];
                             if (continent === '') {
                                 // Handle Americas regions
@@ -79,8 +237,7 @@
                             countryData.push({
                                 country: country.name.common,
                                 continent: continent,
-                                flagUrl: country.flags.svg || country.flags.png,
-                                code: country.cca3.toUpperCase()
+                                flagUrl: country.flags.svg || country.flags.png
                             });
                         }
                     });
@@ -121,7 +278,7 @@
                 disableAllButtons();
                 button.classList.add('correct');
                 playConfetti();
-                highlightCountry(currentCountry.code);
+                highlightCountry(currentCountry.country);
                 setTimeout(startGame, 3000);
             } else {
                 resultDisplay.innerText = "Try again.";
@@ -157,7 +314,7 @@
             });
         }
 
-        function highlightCountry(countryCode) {
+        function highlightCountry(countryName) {
             // Reset styles
             countryLayer.setStyle({
                 fillColor: 'gray',
@@ -168,8 +325,8 @@
 
             // Set style for the selected country
             countryLayer.setStyle(function(feature) {
-                const featureCode = feature.getProperty('ADM0_A3') || feature.getProperty('ISO_A3') || feature.getProperty('ISO3');
-                if (featureCode && featureCode.toUpperCase() === countryCode.toUpperCase()) {
+                const featureName = feature.getProperty('name');
+                if (featureName && featureName.toLowerCase() === countryName.toLowerCase()) {
                     return {
                         fillColor: 'yellow',
                         strokeColor: 'black',
