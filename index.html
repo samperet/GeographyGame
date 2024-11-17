@@ -160,58 +160,139 @@
         let map;
         let countryLayer;
 
-        const mapStyle = [
-            {
-                "featureType": "all",
-                "elementType": "labels",
-                "stylers": [
-                    { "visibility": "off" }
-                ]
-            },
-            {
-                "featureType": "administrative",
-                "elementType": "geometry",
-                "stylers": [
-                    { "visibility": "off" }
-                ]
-            },
-            {
-                "featureType": "poi",
-                "elementType": "all",
-                "stylers": [
-                    { "visibility": "off" }
-                ]
-            },
-            {
-                "featureType": "road",
-                "elementType": "all",
-                "stylers": [
-                    { "visibility": "off" }
-                ]
-            },
-            {
-                "featureType": "transit",
-                "elementType": "all",
-                "stylers": [
-                    { "visibility": "off" }
-                ]
-            }
-        ];
-
-        startButton.addEventListener('click', () => {
-            splashScreen.style.display = 'none';
-            gameContainer.style.display = 'block';
-            initMap();
-        });
-
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 2,
                 center: { lat: 20, lng: 0 },
-                gestureHandling: 'none', // Disable scrolling
-                zoomControl: true,
-                styles: mapStyle
+                gestureHandling: 'none', // Disable zoom gestures
+                zoomControl: false, // Remove zoom control
+                disableDefaultUI: true, // Disable all default UI controls
+                styles: [
+                    {
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#f5f5f5" }
+                        ]
+                    },
+                    {
+                        "elementType": "labels.icon",
+                        "stylers": [
+                            { "visibility": "off" }
+                        ]
+                    },
+                    {
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#616161" }
+                        ]
+                    },
+                    {
+                        "elementType": "labels.text.stroke",
+                        "stylers": [
+                            { "color": "#f5f5f5" }
+                        ]
+                    },
+                    {
+                        "featureType": "administrative.land_parcel",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#bdbdbd" }
+                        ]
+                    },
+                    {
+                        "featureType": "poi",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#eeeeee" }
+                        ]
+                    },
+                    {
+                        "featureType": "poi",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#757575" }
+                        ]
+                    },
+                    {
+                        "featureType": "poi.park",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#e5e5e5" }
+                        ]
+                    },
+                    {
+                        "featureType": "poi.park",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#9e9e9e" }
+                        ]
+                    },
+                    {
+                        "featureType": "road",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#ffffff" }
+                        ]
+                    },
+                    {
+                        "featureType": "road.arterial",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#757575" }
+                        ]
+                    },
+                    {
+                        "featureType": "road.highway",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#dadada" }
+                        ]
+                    },
+                    {
+                        "featureType": "road.highway",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#616161" }
+                        ]
+                    },
+                    {
+                        "featureType": "road.local",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#9e9e9e" }
+                        ]
+                    },
+                    {
+                        "featureType": "transit.line",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#e5e5e5" }
+                        ]
+                    },
+                    {
+                        "featureType": "transit.station",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#eeeeee" }
+                        ]
+                    },
+                    {
+                        "featureType": "water",
+                        "elementType": "geometry",
+                        "stylers": [
+                            { "color": "#c9c9c9" }
+                        ]
+                    },
+                    {
+                        "featureType": "water",
+                        "elementType": "labels.text.fill",
+                        "stylers": [
+                            { "color": "#9e9e9e" }
+                        ]
+                    }
+                ]
             });
+
             countryLayer = new google.maps.Data();
             countryLayer.setStyle({
                 fillColor: 'gray',
@@ -225,70 +306,25 @@
         }
 
         function loadCountryData() {
-            // Fetch country data from the REST Countries API
-            fetch('https://restcountries.com/v3.1/all')
+            fetch('https://raw.githubusercontent.com/johan/world.geo.json/master/countries.geo.json')
                 .then(response => response.json())
-                .then(data => {
-                    data.forEach(country => {
-                        if (country.name && country.name.common && country.region && country.flags) {
-                            let continent = regionMapping[country.region];
-                            if (continent === '') {
-                                // Handle Americas regions
-                                continent = subregionMapping[country.subregion] || 'North America';
-                            }
-
-                            countryData.push({
-                                country: country.name.common,
-                                continent: continent,
-                                flagUrl: country.flags.svg || country.flags.png
-                            });
-                        }
-                    });
-
-                    // Load custom.geo.json file containing all countries
-                    fetch('custom.geo.json')
-                        .then(response => response.json())
-                        .then(geojsonData => {
-                            countryLayer.addGeoJson(geojsonData);
-                            startGame();
-                        })
-                        .catch(error => {
-                            console.error('Error loading custom.geo.json:', error);
-                            alert('Failed to load map data.');
-                        });
+                .then(geojsonData => {
+                    countryLayer.addGeoJson(geojsonData);
+                    startGame();
                 })
                 .catch(error => {
-                    console.error('Error fetching country data:', error);
-                    alert('Failed to load country data.');
+                    console.error('Error loading GeoJSON:', error);
+                    alert('Failed to load map data.');
                 });
         }
 
         function startGame() {
             resultDisplay.innerText = "";
-            clearCountryHighlight();
             resetButtons();
-
             currentCountry = countryData[Math.floor(Math.random() * countryData.length)];
             countryDisplay.innerText = `Which continent is ${currentCountry.country} in?`;
             countryFlag.src = currentCountry.flagUrl;
             countryFlag.alt = `${currentCountry.country} Flag`;
-        }
-
-        function checkAnswer(selectedContinent, button) {
-            if (selectedContinent === currentCountry.continent) {
-                resultDisplay.innerText = "Correct!";
-                resultDisplay.style.color = "green";
-                disableAllButtons();
-                button.classList.add('correct');
-                playConfetti();
-                highlightCountry(currentCountry.country);
-                setTimeout(startGame, 3000);
-            } else {
-                resultDisplay.innerText = "Try again.";
-                resultDisplay.style.color = "red";
-                button.classList.add('incorrect');
-                button.disabled = true;
-            }
         }
 
         function createButtons() {
@@ -302,69 +338,20 @@
             });
         }
 
-        function resetButtons() {
-            const buttons = document.querySelectorAll('.continent-button');
-            buttons.forEach(button => {
-                button.disabled = false;
-                button.classList.remove('incorrect', 'correct');
-            });
-        }
-
-        function disableAllButtons() {
-            const buttons = document.querySelectorAll('.continent-button');
-            buttons.forEach(button => {
-                button.disabled = true;
-            });
-        }
-
-        function highlightCountry(countryName) {
-            // Reset styles
-            countryLayer.setStyle({
-                fillColor: 'gray',
-                strokeColor: 'black',
-                strokeWeight: 1,
-                fillOpacity: 0.5
-            });
-
-            // Set style for the selected country
-            countryLayer.setStyle(function(feature) {
-                const featureName = feature.getProperty('name');
-                if (featureName && featureName.toLowerCase() === countryName.toLowerCase()) {
-                    return {
-                        fillColor: 'yellow',
-                        strokeColor: 'black',
-                        strokeWeight: 1,
-                        fillOpacity: 0.8
-                    };
-                } else {
-                    return {
-                        fillColor: 'gray',
-                        strokeColor: 'black',
-                        strokeWeight: 1,
-                        fillOpacity: 0.5
-                    };
-                }
-            });
-        }
-
-        function clearCountryHighlight() {
-            countryLayer.setStyle({
-                fillColor: 'gray',
-                strokeColor: 'black',
-                strokeWeight: 1,
-                fillOpacity: 0.5
-            });
-        }
-
-        function playConfetti() {
-            confetti({
-                particleCount: 100,
-                spread: 70,
-                origin: { y: 0.6 }
-            });
+        function checkAnswer(selectedContinent, button) {
+            if (selectedContinent === currentCountry.continent) {
+                resultDisplay.innerText = "Correct!";
+                resultDisplay.style.color = "green";
+                button.classList.add('correct');
+                setTimeout(startGame, 3000);
+            } else {
+                resultDisplay.innerText = "Try again.";
+                resultDisplay.style.color = "red";
+                button.classList.add('incorrect');
+            }
         }
     </script>
     <!-- Google Maps API script -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZuMlB4pHfR5sLCxFNQ1xKbc01wTdJcNY&callback=initMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_GOOGLE_MAPS_API_KEY&callback=initMap"></script>
 </body>
 </html>
