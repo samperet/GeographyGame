@@ -76,6 +76,8 @@
             width: 100px;
             height: auto;
             margin-top: 10px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
         }
         .continent-button {
             padding: 10px 20px;
@@ -99,6 +101,7 @@
             margin-top: 20px;
             font-size: 1.5em;
             min-height: 1.5em;
+            height: 1.5em; /* Fixed height to prevent resizing */
         }
         #map {
             height: 500px;
@@ -205,7 +208,7 @@
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 2,
                 center: { lat: 20, lng: 0 },
-                gestureHandling: 'auto',
+                gestureHandling: 'none', // Disable scrolling
                 zoomControl: true,
                 styles: mapStyle
             });
