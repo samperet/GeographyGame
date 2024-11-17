@@ -89,19 +89,9 @@
             color: white;
             border-radius: 5px;
         }
-        .continent-button.incorrect {
-            background-color: red;
-            cursor: default;
-        }
-        .continent-button.correct {
-            background-color: green;
-            cursor: default;
-        }
         #result {
             margin-top: 20px;
             font-size: 1.5em;
-            min-height: 1.5em;
-            height: 1.5em; /* Fixed height to prevent resizing */
         }
         #map {
             height: 500px;
@@ -131,70 +121,24 @@
     </div>
 
     <script>
-        const countryData = [];
-        const continents = ["Africa", "Asia", "Europe", "North America", "South America", "Australia", "Antarctica"];
-        const regionMapping = {
-            'Africa': 'Africa',
-            'Americas': '', // Will handle North and South America separately
-            'Antarctic': 'Antarctica',
-            'Asia': 'Asia',
-            'Europe': 'Europe',
-            'Oceania': 'Australia'
-        };
-        const subregionMapping = {
-            'Northern America': 'North America',
-            'Latin America': 'South America',
-            'Caribbean': 'North America',
-            'Central America': 'North America',
-            'South America': 'South America'
-        };
         const countryDisplay = document.getElementById("country");
         const countryFlag = document.getElementById("country-flag");
         const resultDisplay = document.getElementById("result");
-        const continentButtonsContainer = document.getElementById("continent-buttons");
         const splashScreen = document.getElementById("splash-screen");
         const startButton = document.getElementById("start-button");
         const gameContainer = document.getElementById("game-container");
-
-        let currentCountry = {};
-        let map;
-        let countryLayer;
+        let map, countryLayer, countryData = [];
 
         const mapStyle = [
             {
                 "featureType": "all",
                 "elementType": "geometry",
-                "stylers": [
-                    { "color": "#f5f5f5" } // Light base color for the map
-                ]
-            },
-            {
-                "featureType": "all",
-                "elementType": "labels.text.fill",
-                "stylers": [
-                    { "color": "#616161" }
-                ]
-            },
-            {
-                "featureType": "all",
-                "elementType": "labels.text.stroke",
-                "stylers": [
-                    { "color": "#f5f5f5" }
-                ]
-            },
-            {
-                "featureType": "landscape.man_made",
-                "elementType": "geometry.fill",
-                "stylers": [
-                    { "color": "#e6e6e6" } // Light gray for man-made areas
-                ]
+                "stylers": [{ "color": "#f5f5f5" }]
             },
             {
                 "featureType": "water",
                 "elementType": "geometry",
-                "stylers": [
-                    { "color": "#d4e4f7" } // Light blue for water
-                ]
+                "stylers": [{ "color": "#d4e4f7" }]
             }
         ];
 
@@ -204,7 +148,7 @@
             initMap();
         });
 
-        function initMap() {
+        async function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 2,
                 center: { lat: 20, lng: 0 },
@@ -212,6 +156,7 @@
                 zoomControl: false, // Disable zoom controls
                 styles: mapStyle
             });
+
             countryLayer = new google.maps.Data();
             countryLayer.setStyle({
                 fillColor: 'gray',
@@ -219,14 +164,434 @@
                 strokeWeight: 1,
                 fillOpacity: 0.5
             });
+
             countryLayer.setMap(map);
-            createButtons();
-            loadCountryData();
+            await loadCountryData();
+            loadNewCountry();
         }
 
-        // ... (Rest of the JavaScript remains unchanged)
+        async function loadCountryData() {
+            try {
+                const response = await fetch('custom.geo.json'); // Load your custom.geo.json
+                countryData = await response.json();
+                countryLayer.addGeoJson(countryData);
+            } catch (error) {
+                console.error('Error loading country data:', error);
+            }
+        }
+
+        function loadNewCountry() {
+            if (!countryData.features) return;
+
+            const randomCountry = countryData.features[
+                Math.floor(Math.random() * countryData.features.length)
+            ];
+            const countryName = randomCountry.properties.name || "Unknown Country";
+
+            countryDisplay.textContent = countryName;
+            countryFlag.src = `https://countryflagsapi.com/png/${countryName}`;
+            countryFlag.alt = `${countryName} Flag`;
+        }
+    </script>
+    <!-- Google Maps API script -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Geography Game</title>
+    <!-- Link to Google Fonts for Pacifico font -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <!-- Include the Canvas Confetti library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Hide horizontal scrollbars */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, #e0f7fa, #a5d6a7);
+            background-size: 400% 400%;
+            animation: backgroundAnimation 10s ease infinite;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        @keyframes backgroundAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #splash-title {
+            font-size: 60px;
+            margin-bottom: 10px;
+            font-family: 'Pacifico', cursive;
+            transform: rotate(-5deg);
+            background: linear-gradient(90deg, #9e6742, #66bb6a);
+            background-size: 200% 200%;
+            animation: textGradientAnimation 5s infinite;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+        }
+        @keyframes textGradientAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #start-button {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            margin: 20px;
+        }
+        #game-container {
+            display: none;
+            padding-top: 20px;
+        }
+        #country {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        #country-flag {
+            width: 100px;
+            height: auto;
+            margin-top: 10px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+        }
+        .continent-button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.5em;
+        }
+        #map {
+            height: 500px;
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div id="splash-title">Geography Game</div>
+        <button id="start-button">Start</button>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <h1>Geography Game</h1>
+        <div id="country">Loading...</div>
+        <img id="country-flag" src="" alt="Country Flag" />
+        <div id="continent-buttons"></div>
+        <div id="result"></div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        const countryDisplay = document.getElementById("country");
+        const countryFlag = document.getElementById("country-flag");
+        const resultDisplay = document.getElementById("result");
+        const splashScreen = document.getElementById("splash-screen");
+        const startButton = document.getElementById("start-button");
+        const gameContainer = document.getElementById("game-container");
+        let map, countryLayer, countryData = [];
+
+        const mapStyle = [
+            {
+                "featureType": "all",
+                "elementType": "geometry",
+                "stylers": [{ "color": "#f5f5f5" }]
+            },
+            {
+                "featureType": "water",
+                "elementType": "geometry",
+                "stylers": [{ "color": "#d4e4f7" }]
+            }
+        ];
+
+        startButton.addEventListener('click', () => {
+            splashScreen.style.display = 'none';
+            gameContainer.style.display = 'block';
+            initMap();
+        });
+
+        async function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 2,
+                center: { lat: 20, lng: 0 },
+                gestureHandling: 'none', // Disable zooming
+                zoomControl: false, // Disable zoom controls
+                styles: mapStyle
+            });
+
+            countryLayer = new google.maps.Data();
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
+
+            countryLayer.setMap(map);
+            await loadCountryData();
+            loadNewCountry();
+        }
+
+        async function loadCountryData() {
+            try {
+                const response = await fetch('custom.geo.json'); // Load your custom.geo.json
+                countryData = await response.json();
+                countryLayer.addGeoJson(countryData);
+            } catch (error) {
+                console.error('Error loading country data:', error);
+            }
+        }
+
+        function loadNewCountry() {
+            if (!countryData.features) return;
+
+            const randomCountry = countryData.features[
+                Math.floor(Math.random() * countryData.features.length)
+            ];
+            const countryName = randomCountry.properties.name || "Unknown Country";
+
+            countryDisplay.textContent = countryName;
+            countryFlag.src = `https://countryflagsapi.com/png/${countryName}`;
+            countryFlag.alt = `${countryName} Flag`;
+        }
+    </script>
+    <!-- Google Maps API script -->
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Geography Game</title>
+    <!-- Link to Google Fonts for Pacifico font -->
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
+    <!-- Include the Canvas Confetti library -->
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow-x: hidden; /* Hide horizontal scrollbars */
+        }
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+        }
+        #splash-screen {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(120deg, #e0f7fa, #a5d6a7);
+            background-size: 400% 400%;
+            animation: backgroundAnimation 10s ease infinite;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        @keyframes backgroundAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #splash-title {
+            font-size: 60px;
+            margin-bottom: 10px;
+            font-family: 'Pacifico', cursive;
+            transform: rotate(-5deg);
+            background: linear-gradient(90deg, #9e6742, #66bb6a);
+            background-size: 200% 200%;
+            animation: textGradientAnimation 5s infinite;
+            color: transparent;
+            background-clip: text;
+            -webkit-background-clip: text;
+        }
+        @keyframes textGradientAnimation {
+            0% {background-position: 0% 50%;}
+            50% {background-position: 100% 50%;}
+            100% {background-position: 0% 50%;}
+        }
+        #start-button {
+            padding: 15px 30px;
+            font-size: 1.5em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+            margin: 20px;
+        }
+        #game-container {
+            display: none;
+            padding-top: 20px;
+        }
+        #country {
+            font-size: 2em;
+            margin-bottom: 20px;
+        }
+        #country-flag {
+            width: 100px;
+            height: auto;
+            margin-top: 10px;
+            border: 2px solid #4CAF50;
+            border-radius: 5px;
+        }
+        .continent-button {
+            padding: 10px 20px;
+            margin: 10px;
+            font-size: 1em;
+            cursor: pointer;
+            border: none;
+            background-color: #4CAF50;
+            color: white;
+            border-radius: 5px;
+        }
+        #result {
+            margin-top: 20px;
+            font-size: 1.5em;
+        }
+        #map {
+            height: 500px;
+            width: 80%;
+            max-width: 800px;
+            margin: 20px auto;
+            border: 1px solid #ccc;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Splash Screen -->
+    <div id="splash-screen">
+        <div id="splash-title">Geography Game</div>
+        <button id="start-button">Start</button>
+    </div>
+
+    <!-- Game Container -->
+    <div id="game-container">
+        <h1>Geography Game</h1>
+        <div id="country">Loading...</div>
+        <img id="country-flag" src="" alt="Country Flag" />
+        <div id="continent-buttons"></div>
+        <div id="result"></div>
+        <div id="map"></div>
+    </div>
+
+    <script>
+        const countryDisplay = document.getElementById("country");
+        const countryFlag = document.getElementById("country-flag");
+        const resultDisplay = document.getElementById("result");
+        const splashScreen = document.getElementById("splash-screen");
+        const startButton = document.getElementById("start-button");
+        const gameContainer = document.getElementById("game-container");
+        let map, countryLayer, countryData = [];
+
+        const mapStyle = [
+            {
+                "featureType": "all",
+                "elementType": "geometry",
+                "stylers": [{ "color": "#f5f5f5" }]
+            },
+            {
+                "featureType": "water",
+                "elementType": "geometry",
+                "stylers": [{ "color": "#d4e4f7" }]
+            }
+        ];
+
+        startButton.addEventListener('click', () => {
+            splashScreen.style.display = 'none';
+            gameContainer.style.display = 'block';
+            initMap();
+        });
+
+        async function initMap() {
+            map = new google.maps.Map(document.getElementById("map"), {
+                zoom: 2,
+                center: { lat: 20, lng: 0 },
+                gestureHandling: 'none', // Disable zooming
+                zoomControl: false, // Disable zoom controls
+                styles: mapStyle
+            });
+
+            countryLayer = new google.maps.Data();
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
+
+            countryLayer.setMap(map);
+            await loadCountryData();
+            loadNewCountry();
+        }
+
+        async function loadCountryData() {
+            try {
+                const response = await fetch('custom.geo.json'); // Load your custom.geo.json
+                countryData = await response.json();
+                countryLayer.addGeoJson(countryData);
+            } catch (error) {
+                console.error('Error loading country data:', error);
+            }
+        }
+
+        function loadNewCountry() {
+            if (!countryData.features) return;
+
+            const randomCountry = countryData.features[
+                Math.floor(Math.random() * countryData.features.length)
+            ];
+            const countryName = randomCountry.properties.name || "Unknown Country";
+
+            countryDisplay.textContent = countryName;
+            countryFlag.src = `https://countryflagsapi.com/png/${countryName}`;
+            countryFlag.alt = `${countryName} Flag`;
+        }
     </script>
     <!-- Google Maps API script -->
     <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZuMlB4pHfR5sLCxFNQ1xKbc01wTdJcNY&callback=initMap"></script>
+</body>
+</html>
+&callback=initMap"></script>
+</body>
+</html>
+&callback=initMap"></script>
 </body>
 </html>
