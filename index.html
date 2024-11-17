@@ -76,8 +76,9 @@
             width: 100px;
             height: auto;
             margin-top: 10px;
-            border: 2px solid #4CAF50;
-            border-radius: 5px;
+            border: 5px solid #4CAF50; /* Thicker border for better visibility */
+            border-radius: 10px; /* Rounded corners for a smoother look */
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional shadow for depth */
         }
         .continent-button {
             padding: 10px 20px;
@@ -89,9 +90,19 @@
             color: white;
             border-radius: 5px;
         }
+        .continent-button.incorrect {
+            background-color: red;
+            cursor: default;
+        }
+        .continent-button.correct {
+            background-color: green;
+            cursor: default;
+        }
         #result {
             margin-top: 20px;
             font-size: 1.5em;
+            min-height: 1.5em;
+            height: 1.5em; /* Fixed height to prevent resizing */
         }
         #map {
             height: 500px;
@@ -121,24 +132,70 @@
     </div>
 
     <script>
+        const countryData = [];
+        const continents = ["Africa", "Asia", "Europe", "North America", "South America", "Australia", "Antarctica"];
+        const regionMapping = {
+            'Africa': 'Africa',
+            'Americas': '', // Will handle North and South America separately
+            'Antarctic': 'Antarctica',
+            'Asia': 'Asia',
+            'Europe': 'Europe',
+            'Oceania': 'Australia'
+        };
+        const subregionMapping = {
+            'Northern America': 'North America',
+            'Latin America': 'South America',
+            'Caribbean': 'North America',
+            'Central America': 'North America',
+            'South America': 'South America'
+        };
         const countryDisplay = document.getElementById("country");
         const countryFlag = document.getElementById("country-flag");
         const resultDisplay = document.getElementById("result");
+        const continentButtonsContainer = document.getElementById("continent-buttons");
         const splashScreen = document.getElementById("splash-screen");
         const startButton = document.getElementById("start-button");
         const gameContainer = document.getElementById("game-container");
-        let map, countryLayer, countryData = [];
+
+        let currentCountry = {};
+        let map;
+        let countryLayer;
 
         const mapStyle = [
             {
                 "featureType": "all",
-                "elementType": "geometry",
-                "stylers": [{ "color": "#f5f5f5" }]
+                "elementType": "labels",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
             },
             {
-                "featureType": "water",
+                "featureType": "administrative",
                 "elementType": "geometry",
-                "stylers": [{ "color": "#d4e4f7" }]
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "poi",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "road",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
+            },
+            {
+                "featureType": "transit",
+                "elementType": "all",
+                "stylers": [
+                    { "visibility": "off" }
+                ]
             }
         ];
 
@@ -148,15 +205,17 @@
             initMap();
         });
 
-        async function initMap() {
+        function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 2,
                 center: { lat: 20, lng: 0 },
-                gestureHandling: 'none', // Disable zooming
+                gestureHandling: 'none', // Disable gestures (panning, zooming)
                 zoomControl: false, // Disable zoom controls
+                disableDefaultUI: true, // Remove all default UI elements
+                draggable: false, // Prevent dragging
+                keyboardShortcuts: false, // Disable keyboard shortcuts
                 styles: mapStyle
             });
-
             countryLayer = new google.maps.Data();
             countryLayer.setStyle({
                 fillColor: 'gray',
@@ -164,33 +223,144 @@
                 strokeWeight: 1,
                 fillOpacity: 0.5
             });
-
             countryLayer.setMap(map);
-            await loadCountryData();
-            loadNewCountry();
+            createButtons();
+            loadCountryData();
         }
 
-        async function loadCountryData() {
-            try {
-                const response = await fetch('custom.geo.json'); // Load your custom.geo.json
-                countryData = await response.json();
-                countryLayer.addGeoJson(countryData);
-            } catch (error) {
-                console.error('Error loading country data:', error);
+        function loadCountryData() {
+            fetch('https://restcountries.com/v3.1/all')
+                .then(response => response.json())
+                .then(data => {
+                    data.forEach(country => {
+                        if (country.name && country.name.common && country.region && country.flags) {
+                            let continent = regionMapping[country.region];
+                            if (continent === '') {
+                                continent = subregionMapping[country.subregion] || 'North America';
+                            }
+
+                            countryData.push({
+                                country: country.name.common,
+                                continent: continent,
+                                flagUrl: country.flags.svg || country.flags.png
+                            });
+                        }
+                    });
+
+                    fetch('custom.geo.json')
+                        .then(response => response.json())
+                        .then(geojsonData => {
+                            countryLayer.addGeoJson(geojsonData);
+                            startGame();
+                        })
+                        .catch(error => {
+                            console.error('Error loading custom.geo.json:', error);
+                            alert('Failed to load map data.');
+                        });
+                })
+                .catch(error => {
+                    console.error('Error fetching country data:', error);
+                    alert('Failed to load country data.');
+                });
+        }
+
+        function startGame() {
+            resultDisplay.innerText = "";
+            clearCountryHighlight();
+            resetButtons();
+
+            currentCountry = countryData[Math.floor(Math.random() * countryData.length)];
+            countryDisplay.innerText = `Which continent is ${currentCountry.country} in?`;
+            countryFlag.src = currentCountry.flagUrl;
+            countryFlag.alt = `${currentCountry.country} Flag`;
+        }
+
+        function checkAnswer(selectedContinent, button) {
+            if (selectedContinent === currentCountry.continent) {
+                resultDisplay.innerText = "Correct!";
+                resultDisplay.style.color = "green";
+                disableAllButtons();
+                button.classList.add('correct');
+                playConfetti();
+                highlightCountry(currentCountry.country);
+                setTimeout(startGame, 3000);
+            } else {
+                resultDisplay.innerText = "Try again.";
+                resultDisplay.style.color = "red";
+                button.classList.add('incorrect');
+                button.disabled = true;
             }
         }
 
-        function loadNewCountry() {
-            if (!countryData.features) return;
+        function createButtons() {
+            continentButtonsContainer.innerHTML = '';
+            continents.forEach(continent => {
+                const button = document.createElement("button");
+                button.classList.add("continent-button");
+                button.innerText = continent;
+                button.onclick = () => checkAnswer(continent, button);
+                continentButtonsContainer.appendChild(button);
+            });
+        }
 
-            const randomCountry = countryData.features[
-                Math.floor(Math.random() * countryData.features.length)
-            ];
-            const countryName = randomCountry.properties.name || "Unknown Country";
+        function resetButtons() {
+            const buttons = document.querySelectorAll('.continent-button');
+            buttons.forEach(button => {
+                button.disabled = false;
+                button.classList.remove('incorrect', 'correct');
+            });
+        }
 
-            countryDisplay.textContent = countryName;
-            countryFlag.src = `https://countryflagsapi.com/png/${countryName}`;
-            countryFlag.alt = `${countryName} Flag`;
+        function disableAllButtons() {
+            const buttons = document.querySelectorAll('.continent-button');
+            buttons.forEach(button => {
+                button.disabled = true;
+            });
+        }
+
+        function highlightCountry(countryName) {
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
+
+            countryLayer.setStyle(function(feature) {
+                const featureName = feature.getProperty('name');
+                if (featureName && featureName.toLowerCase() === countryName.toLowerCase()) {
+                    return {
+                        fillColor: 'yellow',
+                        strokeColor: 'black',
+                        strokeWeight: 1,
+                        fillOpacity: 0.8
+                    };
+                } else {
+                    return {
+                        fillColor: 'gray',
+                        strokeColor: 'black',
+                        strokeWeight: 1,
+                        fillOpacity: 0.5
+                    };
+                }
+            });
+        }
+
+        function clearCountryHighlight() {
+            countryLayer.setStyle({
+                fillColor: 'gray',
+                strokeColor: 'black',
+                strokeWeight: 1,
+                fillOpacity: 0.5
+            });
+        }
+
+        function playConfetti() {
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            });
         }
     </script>
     <!-- Google Maps API script -->
