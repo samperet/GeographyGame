@@ -76,9 +76,9 @@
             width: 100px;
             height: auto;
             margin-top: 10px;
-            border: 5px solid #4CAF50; /* Thicker border for better visibility */
-            border-radius: 10px; /* Rounded corners for a smoother look */
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Optional shadow for depth */
+            border: 5px solid #4CAF50;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
         .continent-button {
             padding: 10px 20px;
@@ -161,84 +161,83 @@
         let map;
         let countryLayer;
 
-       const mapStyle = [
-    {
-        "featureType": "water",
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#193341" }
-        ]
-    },
-    {
-        "featureType": "landscape",
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#2c5a71" }
-        ]
-    },
-    {
-        "featureType": "road",
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#29768a" },
-            { "lightness": -37 }
-        ]
-    },
-    {
-        "featureType": "poi",
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#406d80" }
-        ]
-    },
-    {
-        "featureType": "transit",
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#406d80" }
-        ]
-    },
-    {
-        "elementType": "labels.text.stroke",
-        "stylers": [
-            { "visibility": "on" },
-            { "color": "#3e606f" },
-            { "weight": 2 },
-            { "gamma": 0.84 }
-        ]
-    },
-    {
-        "elementType": "labels.text.fill",
-        "stylers": [
-            { "color": "#ffffff" }
-        ]
-    },
-    {
-        "featureType": "administrative",
-        "elementType": "geometry",
-        "stylers": [
-            { "weight": 0.6 },
-            { "color": "#1a3541" }
-        ]
-    },
-    {
-        "elementType": "geometry",
-        "stylers": [
-            { "color": "#1a3541" }
-        ]
-    }
-];
-
+        const mapStyle = [
+            {
+                "featureType": "water",
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#193341" }
+                ]
+            },
+            {
+                "featureType": "landscape",
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#2c5a71" }
+                ]
+            },
+            {
+                "featureType": "road",
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#29768a" },
+                    { "lightness": -37 }
+                ]
+            },
+            {
+                "featureType": "poi",
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#406d80" }
+                ]
+            },
+            {
+                "featureType": "transit",
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#406d80" }
+                ]
+            },
+            {
+                "elementType": "labels.text.stroke",
+                "stylers": [
+                    { "visibility": "on" },
+                    { "color": "#3e606f" },
+                    { "weight": 2 },
+                    { "gamma": 0.84 }
+                ]
+            },
+            {
+                "elementType": "labels.text.fill",
+                "stylers": [
+                    { "color": "#ffffff" }
+                ]
+            },
+            {
+                "featureType": "administrative",
+                "elementType": "geometry",
+                "stylers": [
+                    { "weight": 0.6 },
+                    { "color": "#1a3541" }
+                ]
+            },
+            {
+                "elementType": "geometry",
+                "stylers": [
+                    { "color": "#1a3541" }
+                ]
+            }
+        ];
 
         function initMap() {
             map = new google.maps.Map(document.getElementById("map"), {
                 zoom: 2,
                 center: { lat: 20, lng: 0 },
-                gestureHandling: 'none', // Disable gestures (panning, zooming)
-                zoomControl: false, // Disable zoom controls
-                disableDefaultUI: true, // Remove all default UI elements
-                draggable: false, // Prevent dragging
-                keyboardShortcuts: false, // Disable keyboard shortcuts
+                gestureHandling: 'none',
+                zoomControl: false,
+                disableDefaultUI: true,
+                draggable: false,
+                keyboardShortcuts: false,
                 styles: mapStyle
             });
             countryLayer = new google.maps.Data();
@@ -258,20 +257,32 @@
                 .then(response => response.json())
                 .then(data => {
                     data.forEach(country => {
-                        if (country.name && country.name.common && country.region && country.flags) {
-                            let continent = regionMapping[country.region];
+                        const name = country?.name?.common;
+                        const region = country?.region;
+                        const subregion = country?.subregion;
+                        const flags = country?.flags;
+                        if (name && region && flags) {
+                            let continent = regionMapping[region] || null;
                             if (continent === '') {
-                                continent = subregionMapping[country.subregion] || 'North America';
+                                // handle Americas
+                                continent = subregionMapping[subregion] || 'North America';
                             }
+                            
+                            // If no recognized continent, skip
+                            if (!continent) return;
+
+                            const flagUrl = flags.svg || flags.png || '';
+                            if (!flagUrl) return; // Skip if no flag
 
                             countryData.push({
-                                country: country.name.common,
+                                country: name,
                                 continent: continent,
-                                flagUrl: country.flags.svg || country.flags.png
+                                flagUrl: flagUrl
                             });
                         }
                     });
 
+                    // Attempt to load custom.geo.json but don't throw an error if it fails
                     fetch('custom.geo.json')
                         .then(response => response.json())
                         .then(geojsonData => {
@@ -280,23 +291,33 @@
                         })
                         .catch(error => {
                             console.error('Error loading custom.geo.json:', error);
-                            alert('Failed to load map data.');
+                            // Start the game even if map data fails to load
+                            startGame();
                         });
                 })
                 .catch(error => {
                     console.error('Error fetching country data:', error);
+                    // Even if we fail to load country data, let's not break entirely.
+                    // Show a message and don't attempt to play the game.
+                    countryDisplay.innerText = "Failed to load country data.";
                 });
         }
 
         function startGame() {
+            if (countryData.length === 0) {
+                countryDisplay.innerText = "No country data available.";
+                return;
+            }
             resultDisplay.innerText = "";
             clearCountryHighlight();
             resetButtons();
 
             currentCountry = countryData[Math.floor(Math.random() * countryData.length)];
-            countryDisplay.innerText = `Which continent is ${currentCountry.country} in?`;
-            countryFlag.src = currentCountry.flagUrl;
-            countryFlag.alt = `${currentCountry.country} Flag`;
+            if (currentCountry) {
+                countryDisplay.innerText = `Which continent is ${currentCountry.country} in?`;
+                countryFlag.src = currentCountry.flagUrl;
+                countryFlag.alt = `${currentCountry.country} Flag`;
+            }
         }
 
         function checkAnswer(selectedContinent, button) {
@@ -386,8 +407,14 @@
                 origin: { y: 0.6 }
             });
         }
+
+        // Event listeners
+        startButton.addEventListener("click", () => {
+            splashScreen.style.display = "none";
+            gameContainer.style.display = "block";
+        });
     </script>
     <!-- Google Maps API script -->
-    <script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBZuMlB4pHfR5sLCxFNQ1xKbc01wTdJcNY&callback=initMap"></script>
+    <script async defer src="https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY&callback=initMap"></script>
 </body>
 </html>
