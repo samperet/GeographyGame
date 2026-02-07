@@ -160,6 +160,7 @@
         let currentCountry = {};
         let map;
         let countryLayer;
+        let gameInitialized = false;
 
         const mapStyle = [
             {
@@ -230,26 +231,37 @@
         ];
 
         function initMap() {
-            map = new google.maps.Map(document.getElementById("map"), {
-                zoom: 2,
-                center: { lat: 20, lng: 0 },
-                gestureHandling: 'none',
-                zoomControl: false,
-                disableDefaultUI: true,
-                draggable: false,
-                keyboardShortcuts: false,
-                styles: mapStyle
-            });
-            countryLayer = new google.maps.Data();
-            countryLayer.setStyle({
-                fillColor: 'gray',
-                strokeColor: 'black',
-                strokeWeight: 1,
-                fillOpacity: 0.5
-            });
-            countryLayer.setMap(map);
-            createButtons();
-            loadCountryData();
+            // Google Maps callback. The game should still work if maps fails to load.
+            try {
+                map = new google.maps.Map(document.getElementById("map"), {
+                    zoom: 2,
+                    center: { lat: 20, lng: 0 },
+                    gestureHandling: 'none',
+                    zoomControl: false,
+                    disableDefaultUI: true,
+                    draggable: false,
+                    keyboardShortcuts: false,
+                    styles: mapStyle
+                });
+                countryLayer = new google.maps.Data();
+                countryLayer.setStyle({
+                    fillColor: 'gray',
+                    strokeColor: 'black',
+                    strokeWeight: 1,
+                    fillOpacity: 0.5
+                });
+                countryLayer.setMap(map);
+
+                // Load geojson if available, but do not block gameplay.
+                fetch('custom.geo.json')
+                    .then(response => response.json())
+                    .then(geojsonData => countryLayer.addGeoJson(geojsonData))
+                    .catch(error => console.error('Error loading custom.geo.json:', error));
+            } catch (error) {
+                console.error('Error initializing map:', error);
+                const mapElement = document.getElementById("map");
+                mapElement.innerText = "Map unavailable, but you can still play.";
+            }
         }
 
         function loadCountryData() {
@@ -282,18 +294,7 @@
                         }
                     });
 
-                    // Attempt to load custom.geo.json but don't throw an error if it fails
-                    fetch('custom.geo.json')
-                        .then(response => response.json())
-                        .then(geojsonData => {
-                            countryLayer.addGeoJson(geojsonData);
-                            startGame();
-                        })
-                        .catch(error => {
-                            console.error('Error loading custom.geo.json:', error);
-                            // Start the game even if map data fails to load
-                            startGame();
-                        });
+                    startGame();
                 })
                 .catch(error => {
                     console.error('Error fetching country data:', error);
@@ -321,6 +322,10 @@
         }
 
         function checkAnswer(selectedContinent, button) {
+            if (!currentCountry || !currentCountry.continent) {
+                return;
+            }
+
             if (selectedContinent === currentCountry.continent) {
                 resultDisplay.innerText = "Correct!";
                 resultDisplay.style.color = "green";
@@ -364,6 +369,8 @@
         }
 
         function highlightCountry(countryName) {
+            if (!countryLayer) return;
+
             countryLayer.setStyle({
                 fillColor: 'gray',
                 strokeColor: 'black',
@@ -392,6 +399,8 @@
         }
 
         function clearCountryHighlight() {
+            if (!countryLayer) return;
+
             countryLayer.setStyle({
                 fillColor: 'gray',
                 strokeColor: 'black',
@@ -409,9 +418,17 @@
         }
 
         // Event listeners
+        function initializeGame() {
+            if (gameInitialized) return;
+            gameInitialized = true;
+            createButtons();
+            loadCountryData();
+        }
+
         startButton.addEventListener("click", () => {
             splashScreen.style.display = "none";
             gameContainer.style.display = "block";
+            initializeGame();
         });
     </script>
     <!-- Google Maps API script -->
