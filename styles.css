@@ -7,6 +7,8 @@ body, html {
 body {
     font-family: Arial, sans-serif;
     text-align: center;
+    background: #fafafa;
+    color: #222;
 }
 
 #splash-screen {
@@ -23,6 +25,12 @@ body {
     justify-content: center;
     align-items: center;
     z-index: 10;
+    transition: opacity 0.4s ease;
+}
+
+#splash-screen.fading {
+    opacity: 0;
+    pointer-events: none;
 }
 
 @keyframes backgroundAnimation {
@@ -59,6 +67,36 @@ body {
     color: white;
     border-radius: 5px;
     margin: 20px;
+    box-shadow: 0 4px 12px rgba(76, 175, 80, 0.3);
+    transition: transform 0.12s ease, box-shadow 0.2s ease;
+}
+
+#start-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 18px rgba(76, 175, 80, 0.4);
+}
+
+#start-button:active {
+    transform: translateY(0);
+}
+
+#splash-hint {
+    margin-top: 20px;
+    font-size: 0.85em;
+    color: rgba(60, 60, 60, 0.7);
+    max-width: 90%;
+}
+
+#splash-hint kbd {
+    display: inline-block;
+    padding: 1px 6px;
+    font-family: inherit;
+    font-size: 0.9em;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 3px;
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.08);
+    margin: 0 1px;
 }
 
 #game-container {
@@ -73,6 +111,10 @@ body {
     min-height: 1.2em;
 }
 
+#scoreboard .streak-on-fire { color: #ff7043; font-weight: bold; }
+#scoreboard .streak-blazing { color: #e64a19; font-weight: bold; text-shadow: 0 0 6px rgba(230, 74, 25, 0.4); }
+#scoreboard .streak-legendary { color: #ad1457; font-weight: bold; text-shadow: 0 0 8px rgba(173, 20, 87, 0.5); }
+
 #country {
     font-size: 2em;
     margin-bottom: 20px;
@@ -86,6 +128,31 @@ body {
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 }
+
+@keyframes flagEntrance {
+    from { opacity: 0; transform: translateY(-8px) scale(0.92); }
+    to   { opacity: 1; transform: none; }
+}
+
+#country-flag.entering {
+    animation: flagEntrance 0.35s ease-out;
+}
+
+@keyframes pulse {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.12); }
+    100% { transform: scale(1); }
+}
+
+.pulse { animation: pulse 0.45s ease-out; }
+
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20%, 60% { transform: translateX(-6px); }
+    40%, 80% { transform: translateX(6px); }
+}
+
+.shake { animation: shake 0.35s ease-in-out; }
 
 #continent-buttons {
     display: flex;
@@ -105,18 +172,31 @@ body {
     background-color: #4CAF50;
     color: white;
     border-radius: 5px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    transition: transform 0.1s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.continent-button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.continent-button:not(:disabled):active {
+    transform: translateY(0);
 }
 
 .continent-button:disabled {
     cursor: default;
+    opacity: 0.85;
 }
 
 .continent-button.incorrect {
-    background-color: red;
+    background-color: #e53935;
 }
 
 .continent-button.correct {
-    background-color: green;
+    background-color: #2e7d32;
+    box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.3), 0 4px 10px rgba(46, 125, 50, 0.4);
 }
 
 #result {
@@ -124,6 +204,7 @@ body {
     font-size: 1.5em;
     min-height: 1.5em;
     height: 1.5em;
+    transition: color 0.2s ease;
 }
 
 #action-buttons {
@@ -142,6 +223,17 @@ body {
     border-radius: 5px;
     background-color: #607d8b;
     color: white;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.12);
+    transition: transform 0.1s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+}
+
+.action-button:not(:disabled):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.18);
+}
+
+.action-button:not(:disabled):active {
+    transform: translateY(0);
 }
 
 .action-button:disabled {
@@ -162,6 +254,52 @@ body {
     border-radius: 10px;
 }
 
+.mute-button {
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    background: rgba(255, 255, 255, 0.9);
+    color: #333;
+    font-size: 18px;
+    line-height: 1;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.12);
+    transition: transform 0.12s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mute-button:hover {
+    transform: scale(1.05);
+    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.18);
+}
+
+.mute-button.muted {
+    color: #888;
+    opacity: 0.7;
+}
+
+.mute-button.muted .mute-glyph {
+    position: relative;
+}
+
+.mute-button.muted .mute-glyph::after {
+    content: '';
+    position: absolute;
+    left: -4px;
+    right: -4px;
+    top: 50%;
+    height: 2px;
+    background: currentColor;
+    transform: rotate(-30deg);
+}
+
 @media (max-width: 600px) {
     #splash-title {
         font-size: 44px;
@@ -169,6 +307,9 @@ body {
     #start-button {
         font-size: 1.25em;
         padding: 12px 24px;
+    }
+    #splash-hint {
+        font-size: 0.75em;
     }
     h1 {
         font-size: 1.5em;
@@ -192,5 +333,26 @@ body {
         width: 95%;
         height: 320px;
         margin: 16px auto;
+    }
+    .mute-button {
+        width: 36px;
+        height: 36px;
+        font-size: 16px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    #splash-screen,
+    #splash-title,
+    #country-flag,
+    .continent-button,
+    .action-button,
+    .mute-button,
+    #start-button {
+        animation: none !important;
+        transition: none !important;
+    }
+    .pulse, .shake, #country-flag.entering {
+        animation: none !important;
     }
 }

@@ -9,10 +9,15 @@
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
+    <button id="mute-button" class="mute-button" type="button" aria-label="Toggle sound" aria-pressed="false" title="Toggle sound (M)">
+        <span class="mute-glyph">&#9835;</span>
+    </button>
+
     <!-- Splash Screen -->
     <div id="splash-screen">
         <div id="splash-title">Geography Game</div>
         <button id="start-button" type="button">Start</button>
+        <div id="splash-hint">Tip: press <kbd>1</kbd>&ndash;<kbd>7</kbd> to answer, <kbd>S</kbd> to skip, <kbd>Space</kbd> for next, <kbd>M</kbd> to mute.</div>
     </div>
 
     <!-- Game Container -->
@@ -24,8 +29,8 @@
         <div id="continent-buttons" role="group" aria-label="Continent choices"></div>
         <div id="result" aria-live="polite" role="status"></div>
         <div id="action-buttons">
-            <button id="skip-button" class="action-button" type="button">Skip</button>
-            <button id="next-button" class="action-button action-button-primary" type="button" hidden>Next</button>
+            <button id="skip-button" class="action-button" type="button" title="Skip (S)">Skip</button>
+            <button id="next-button" class="action-button action-button-primary" type="button" hidden title="Next (Space)">Next</button>
         </div>
         <div id="map"></div>
     </div>

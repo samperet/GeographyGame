@@ -1,6 +1,8 @@
 (function () {
     'use strict';
 
+    const STORE_KEY = 'geography-game-state-v1';
+
     const continents = ["Africa", "Asia", "Europe", "North America", "South America", "Australia", "Antarctica"];
 
     // Natural Earth uses "Oceania"; the game UI uses "Australia".
@@ -37,6 +39,7 @@
     const splashScreen = document.getElementById("splash-screen");
     const startButton = document.getElementById("start-button");
     const gameContainer = document.getElementById("game-container");
+    const muteButton = document.getElementById("mute-button");
 
     let countryData = [];
     let queue = [];
@@ -50,6 +53,178 @@
     let attempts = 0;
     let streak = 0;
     let bestStreak = 0;
+
+    // ---- Persistent state -----------------------------------------------
+
+    function loadStore() {
+        try {
+            const raw = localStorage.getItem(STORE_KEY);
+            return raw ? (JSON.parse(raw) || {}) : {};
+        } catch (e) {
+            return {};
+        }
+    }
+
+    function saveStore(patch) {
+        try {
+            const cur = loadStore();
+            const next = Object.assign({}, cur, patch);
+            localStorage.setItem(STORE_KEY, JSON.stringify(next));
+        } catch (e) { /* quota / private mode */ }
+    }
+
+    const persisted = loadStore();
+    bestStreak = typeof persisted.bestStreak === 'number' ? persisted.bestStreak : 0;
+    let muted = !!persisted.muted;
+
+    // ---- Audio engine (Web Audio synth — no external sound files) -------
+
+    const audio = (function () {
+        let ctx = null;
+        let masterGain = null;
+        let musicGain = null;
+        let sfxGain = null;
+        let musicTimer = null;
+
+        function ensureCtx() {
+            if (ctx) {
+                if (ctx.state === 'suspended') ctx.resume();
+                return ctx;
+            }
+            const AC = window.AudioContext || window.webkitAudioContext;
+            if (!AC) return null;
+            ctx = new AC();
+            masterGain = ctx.createGain();
+            masterGain.gain.value = muted ? 0 : 0.6;
+            masterGain.connect(ctx.destination);
+            musicGain = ctx.createGain();
+            musicGain.gain.value = 0.18;
+            musicGain.connect(masterGain);
+            sfxGain = ctx.createGain();
+            sfxGain.gain.value = 0.55;
+            sfxGain.connect(masterGain);
+            return ctx;
+        }
+
+        function setMuted(v) {
+            if (masterGain) {
+                masterGain.gain.cancelScheduledValues(ctx.currentTime);
+                masterGain.gain.linearRampToValueAtTime(v ? 0 : 0.6, ctx.currentTime + 0.05);
+            }
+        }
+
+        function tone(freq, duration, opts) {
+            const o = opts || {};
+            const c = ensureCtx();
+            if (!c) return;
+            const osc = c.createOscillator();
+            const g = c.createGain();
+            osc.type = o.type || 'sine';
+            osc.frequency.setValueAtTime(freq, c.currentTime);
+            if (o.bendTo) {
+                osc.frequency.exponentialRampToValueAtTime(o.bendTo, c.currentTime + duration);
+            }
+            const peak = o.volume != null ? o.volume : 0.4;
+            g.gain.setValueAtTime(0, c.currentTime);
+            g.gain.linearRampToValueAtTime(peak, c.currentTime + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.0008, c.currentTime + duration);
+            osc.connect(g);
+            g.connect(sfxGain);
+            osc.start();
+            osc.stop(c.currentTime + duration + 0.02);
+        }
+
+        function correct() {
+            // C major triad up to high C.
+            [523.25, 659.25, 783.99, 1046.50].forEach((f, i) => {
+                setTimeout(() => tone(f, 0.32, { type: 'triangle', volume: 0.35 }), i * 70);
+            });
+        }
+
+        function wrong() {
+            tone(196, 0.18, { type: 'sawtooth', volume: 0.22, bendTo: 130 });
+        }
+
+        function skip() {
+            tone(440, 0.12, { type: 'triangle', volume: 0.25 });
+            setTimeout(() => tone(330, 0.16, { type: 'triangle', volume: 0.22 }), 100);
+        }
+
+        function next() {
+            tone(660, 0.08, { type: 'sine', volume: 0.22 });
+        }
+
+        function fanfare() {
+            // Played on milestone streaks.
+            [523.25, 659.25, 783.99, 1046.50, 1318.51].forEach((f, i) => {
+                setTimeout(() => tone(f, 0.28, { type: 'triangle', volume: 0.32 }), i * 90);
+            });
+        }
+
+        // Ambient generative music: random pentatonic raindrops.
+        const pentatonic = [261.63, 293.66, 329.63, 392.00, 440.00, 523.25, 587.33, 659.25, 783.99];
+
+        function dropNote() {
+            const c = ensureCtx();
+            if (!c) return;
+            const f = pentatonic[Math.floor(Math.random() * pentatonic.length)];
+            const osc = c.createOscillator();
+            const g = c.createGain();
+            osc.type = 'sine';
+            osc.frequency.value = f;
+            const now = c.currentTime;
+            g.gain.setValueAtTime(0, now);
+            g.gain.linearRampToValueAtTime(0.09, now + 0.4);
+            g.gain.exponentialRampToValueAtTime(0.0008, now + 2.8);
+            osc.connect(g);
+            g.connect(musicGain);
+            osc.start(now);
+            osc.stop(now + 3);
+        }
+
+        function scheduleNextDrop() {
+            if (!musicTimer) return;
+            dropNote();
+            const delay = 700 + Math.random() * 900;
+            musicTimer = setTimeout(scheduleNextDrop, delay);
+        }
+
+        function startMusic() {
+            if (musicTimer) return;
+            if (!ensureCtx()) return;
+            musicTimer = true; // truthy sentinel before first setTimeout
+            scheduleNextDrop();
+        }
+
+        function stopMusic() {
+            if (musicTimer && musicTimer !== true) clearTimeout(musicTimer);
+            musicTimer = null;
+        }
+
+        return {
+            ensureCtx, setMuted,
+            correct, wrong, skip, next, fanfare,
+            startMusic, stopMusic
+        };
+    })();
+
+    function applyMute() {
+        muteButton.classList.toggle('muted', muted);
+        muteButton.setAttribute('aria-pressed', String(muted));
+        audio.setMuted(muted);
+    }
+
+    function toggleMute() {
+        muted = !muted;
+        applyMute();
+        saveStore({ muted: muted });
+        if (gameInitialized) {
+            if (muted) audio.stopMusic();
+            else audio.startMusic();
+        }
+    }
+
+    // ---- Map ------------------------------------------------------------
 
     function defaultFeatureStyle() {
         return {
@@ -96,6 +271,8 @@
         }
     }
 
+    // ---- Country data ---------------------------------------------------
+
     function processFeatures(features) {
         const out = [];
         features.forEach(feature => {
@@ -140,6 +317,8 @@
             });
     }
 
+    // ---- Queue / rounds -------------------------------------------------
+
     function shuffle(arr) {
         for (let i = arr.length - 1; i > 0; i--) {
             const j = Math.floor(Math.random() * (i + 1));
@@ -159,11 +338,40 @@
         return countryData[queue.pop()];
     }
 
+    function streakAnnotation(s) {
+        if (s >= 20) return { label: ' — LEGENDARY!', cls: 'streak-legendary' };
+        if (s >= 10) return { label: ' — BLAZING', cls: 'streak-blazing' };
+        if (s >= 5)  return { label: ' — on fire', cls: 'streak-on-fire' };
+        return null;
+    }
+
     function updateScoreboard() {
-        scoreboard.innerText =
+        const note = streakAnnotation(streak);
+        const base =
             'Score: ' + score + '/' + attempts +
             ' · Streak: ' + streak +
             ' (Best: ' + bestStreak + ')';
+        if (note) {
+            scoreboard.innerHTML =
+                escapeHtml(base) +
+                '<span class="' + note.cls + '">' + escapeHtml(note.label) + '</span>';
+        } else {
+            scoreboard.textContent = base;
+        }
+    }
+
+    function escapeHtml(s) {
+        return String(s).replace(/[&<>"']/g, ch => ({
+            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+        }[ch]));
+    }
+
+    function animateOnce(el, cls) {
+        if (!el) return;
+        el.classList.remove(cls);
+        // Force reflow so the animation restarts even if class was just added.
+        void el.offsetWidth;
+        el.classList.add(cls);
     }
 
     function startGame() {
@@ -185,6 +393,7 @@
         countryFlag.src = currentCountry.flagUrl;
         countryFlag.alt = currentCountry.country + " Flag";
         countryFlag.hidden = false;
+        animateOnce(countryFlag, 'entering');
         updateScoreboard();
     }
 
@@ -200,17 +409,29 @@
         if (!currentCountry || !currentCountry.continent) return;
 
         if (selectedContinent === currentCountry.continent) {
-            if (!firstTryWrong) {
+            const wasFirstTry = !firstTryWrong;
+            if (wasFirstTry) {
                 score++;
                 streak++;
-                if (streak > bestStreak) bestStreak = streak;
+                if (streak > bestStreak) {
+                    bestStreak = streak;
+                    saveStore({ bestStreak: bestStreak });
+                }
             } else {
                 streak = 0;
             }
             resultDisplay.innerText = "Correct!";
             resultDisplay.style.color = "green";
             button.classList.add('correct');
+            animateOnce(countryFlag, 'pulse');
             playConfetti();
+            const milestone = wasFirstTry && (streak === 5 || (streak >= 10 && streak % 10 === 0));
+            if (milestone) {
+                audio.fanfare();
+                setTimeout(() => playConfetti({ spread: 100, particleCount: 140 }), 120);
+            } else {
+                audio.correct();
+            }
             finishRound();
         } else {
             if (!firstTryWrong) {
@@ -222,11 +443,13 @@
             resultDisplay.style.color = "red";
             button.classList.add('incorrect');
             button.disabled = true;
+            animateOnce(button, 'shake');
+            audio.wrong();
         }
     }
 
     function skipCurrent() {
-        if (!currentCountry) return;
+        if (!currentCountry || nextButton.hidden === false) return;
         if (!firstTryWrong) streak = 0;
         firstTryWrong = true;
         resultDisplay.innerText = "The answer is " + currentCountry.continent + ".";
@@ -235,16 +458,24 @@
         buttons.forEach(b => {
             if (b.innerText === currentCountry.continent) b.classList.add('correct');
         });
+        audio.skip();
         finishRound();
+    }
+
+    function advance() {
+        if (nextButton.hidden) return;
+        audio.next();
+        startGame();
     }
 
     function createButtons() {
         continentButtonsContainer.innerHTML = '';
-        continents.forEach(continent => {
+        continents.forEach((continent, idx) => {
             const button = document.createElement("button");
             button.type = "button";
             button.classList.add("continent-button");
             button.innerText = continent;
+            button.title = continent + ' (' + (idx + 1) + ')';
             button.addEventListener('click', () => checkAnswer(continent, button));
             continentButtonsContainer.appendChild(button);
         });
@@ -254,7 +485,7 @@
         const buttons = continentButtonsContainer.querySelectorAll('.continent-button');
         buttons.forEach(button => {
             button.disabled = false;
-            button.classList.remove('incorrect', 'correct');
+            button.classList.remove('incorrect', 'correct', 'shake', 'pulse');
         });
     }
 
@@ -291,13 +522,14 @@
         countryLayer.setStyle(defaultFeatureStyle);
     }
 
-    function playConfetti() {
+    function playConfetti(opts) {
         if (typeof confetti !== 'function') return;
-        confetti({
+        const options = Object.assign({
             particleCount: 100,
             spread: 70,
             origin: { y: 0.6 }
-        });
+        }, opts || {});
+        confetti(options);
     }
 
     function initializeGame() {
@@ -307,19 +539,80 @@
         loadCountryData();
     }
 
+    // ---- Keyboard shortcuts --------------------------------------------
+
+    function isTypingTarget(target) {
+        if (!target) return false;
+        const tag = target.tagName;
+        return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable;
+    }
+
+    document.addEventListener('keydown', (e) => {
+        if (e.metaKey || e.ctrlKey || e.altKey) return;
+        if (isTypingTarget(e.target)) return;
+
+        if (e.key === 'm' || e.key === 'M') {
+            toggleMute();
+            e.preventDefault();
+            return;
+        }
+
+        // Splash screen: Enter or Space to start.
+        if (gameContainer.style.display !== 'block') {
+            if (e.key === 'Enter' || e.key === ' ') {
+                startButton.click();
+                e.preventDefault();
+            }
+            return;
+        }
+
+        // Game running.
+        if (e.key === 'Enter' || e.key === ' ') {
+            if (!nextButton.hidden) {
+                advance();
+                e.preventDefault();
+            }
+            return;
+        }
+        if (e.key === 's' || e.key === 'S') {
+            if (!skipButton.disabled) {
+                skipCurrent();
+                e.preventDefault();
+            }
+            return;
+        }
+        if (/^[1-7]$/.test(e.key)) {
+            const idx = parseInt(e.key, 10) - 1;
+            const buttons = continentButtonsContainer.querySelectorAll('.continent-button');
+            const btn = buttons[idx];
+            if (btn && !btn.disabled) {
+                checkAnswer(continents[idx], btn);
+                e.preventDefault();
+            }
+        }
+    });
+
+    // ---- Wire up --------------------------------------------------------
+
     countryFlag.addEventListener('error', () => {
-        // Hide rather than show a broken-image icon if the flag CDN fails.
         countryFlag.hidden = true;
     });
 
-    startButton.addEventListener("click", () => {
-        splashScreen.style.display = "none";
-        gameContainer.style.display = "block";
+    muteButton.addEventListener('click', toggleMute);
+
+    startButton.addEventListener('click', () => {
+        splashScreen.classList.add('fading');
+        setTimeout(() => { splashScreen.style.display = 'none'; }, 400);
+        gameContainer.style.display = 'block';
+        audio.ensureCtx();
+        if (!muted) audio.startMusic();
         initializeGame();
     });
 
-    skipButton.addEventListener("click", skipCurrent);
-    nextButton.addEventListener("click", startGame);
+    skipButton.addEventListener('click', skipCurrent);
+    nextButton.addEventListener('click', advance);
+
+    applyMute();
 
     // Google Maps loads with ?callback=initMap and expects a global.
     window.initMap = initMap;
