@@ -1,25 +1,18 @@
 (function () {
     'use strict';
 
-    const COUNTRY_CACHE_KEY = 'geography-game-country-data-v1';
-    const COUNTRY_CACHE_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-
     const continents = ["Africa", "Asia", "Europe", "North America", "South America", "Australia", "Antarctica"];
 
-    const regionMapping = {
-        'Africa': 'Africa',
-        'Americas': '', // handled via subregion
-        'Antarctic': 'Antarctica',
-        'Asia': 'Asia',
-        'Europe': 'Europe',
-        'Oceania': 'Australia'
-    };
+    // Natural Earth uses "Oceania"; the game UI uses "Australia".
+    const continentRename = { 'Oceania': 'Australia' };
+    const skipContinents = new Set(['Seven seas (open ocean)']);
 
-    const subregionMapping = {
-        'Northern America': 'North America',
-        'Caribbean': 'North America',
-        'Central America': 'North America',
-        'South America': 'South America'
+    // Natural Earth sets iso_a2 to "-99" for a handful of features. Override
+    // the major ones; the rest (unrecognized states) are skipped.
+    const isoA2Override = {
+        'France': 'fr',
+        'Norway': 'no',
+        'Kosovo': 'xk'
     };
 
     const mapStyle = [
@@ -50,12 +43,32 @@
     let currentCountry = null;
     let map = null;
     let countryLayer = null;
+    let geojsonPromise = null;
     let gameInitialized = false;
     let firstTryWrong = false;
     let score = 0;
     let attempts = 0;
     let streak = 0;
     let bestStreak = 0;
+
+    function defaultFeatureStyle() {
+        return {
+            fillColor: 'gray',
+            strokeColor: 'black',
+            strokeWeight: 1,
+            fillOpacity: 0.5
+        };
+    }
+
+    function loadGeojson() {
+        if (!geojsonPromise) {
+            geojsonPromise = fetch('custom.geo.json').then(response => {
+                if (!response.ok) throw new Error('HTTP ' + response.status);
+                return response.json();
+            });
+        }
+        return geojsonPromise;
+    }
 
     function initMap() {
         try {
@@ -73,8 +86,7 @@
             countryLayer.setStyle(defaultFeatureStyle);
             countryLayer.setMap(map);
 
-            fetch('custom.geo.json')
-                .then(response => response.json())
+            loadGeojson()
                 .then(geojsonData => countryLayer.addGeoJson(geojsonData))
                 .catch(error => console.error('Error loading custom.geo.json:', error));
         } catch (error) {
@@ -84,90 +96,46 @@
         }
     }
 
-    function defaultFeatureStyle() {
-        return {
-            fillColor: 'gray',
-            strokeColor: 'black',
-            strokeWeight: 1,
-            fillOpacity: 0.5
-        };
-    }
-
-    function loadCachedCountryData() {
-        try {
-            const raw = localStorage.getItem(COUNTRY_CACHE_KEY);
-            if (!raw) return null;
-            const parsed = JSON.parse(raw);
-            if (!parsed || !Array.isArray(parsed.data) || parsed.data.length === 0) return null;
-            if (typeof parsed.savedAt !== 'number') return null;
-            if (Date.now() - parsed.savedAt > COUNTRY_CACHE_TTL_MS) return null;
-            return parsed.data;
-        } catch (e) {
-            return null;
-        }
-    }
-
-    function saveCachedCountryData(data) {
-        try {
-            localStorage.setItem(COUNTRY_CACHE_KEY, JSON.stringify({
-                savedAt: Date.now(),
-                data: data
-            }));
-        } catch (e) {
-            // ignore quota / private-mode errors
-        }
-    }
-
-    function processCountries(data) {
+    function processFeatures(features) {
         const out = [];
-        data.forEach(country => {
-            const name = country && country.name && country.name.common;
-            const cca3 = country && country.cca3;
-            const region = country && country.region;
-            const subregion = country && country.subregion;
-            const flags = country && country.flags;
-            if (!name || !region || !flags) return;
+        features.forEach(feature => {
+            const p = (feature && feature.properties) || {};
+            const name = p.name;
+            const continentRaw = p.continent;
+            if (!name || !continentRaw) return;
+            if (skipContinents.has(continentRaw)) return;
 
-            let continent = regionMapping[region];
-            if (continent === undefined) return;
-            if (continent === '') {
-                continent = subregionMapping[subregion] || 'North America';
+            let iso2 = (p.iso_a2 || '').toLowerCase();
+            if (!iso2 || iso2 === '-99') {
+                iso2 = isoA2Override[name] || null;
             }
+            if (!iso2) return;
 
-            const flagUrl = flags.svg || flags.png || '';
-            if (!flagUrl) return;
+            const continent = continentRename[continentRaw] || continentRaw;
 
             out.push({
                 country: name,
-                code: cca3 || null,
+                code: p.iso_a3 || null,
                 continent: continent,
-                flagUrl: flagUrl
+                flagUrl: 'https://flagcdn.com/' + iso2 + '.svg'
             });
         });
         return out;
     }
 
     function loadCountryData() {
-        const cached = loadCachedCountryData();
-        if (cached) {
-            countryData = cached;
-            startGame();
-            return;
-        }
-
-        // restcountries /all requires `fields` (changed late 2024); without it returns HTTP 400.
-        fetch('https://restcountries.com/v3.1/all?fields=name,cca3,region,subregion,flags')
-            .then(response => {
-                if (!response.ok) throw new Error('HTTP ' + response.status);
-                return response.json();
-            })
-            .then(data => {
-                countryData = processCountries(data);
-                if (countryData.length > 0) saveCachedCountryData(countryData);
+        loadGeojson()
+            .then(geojsonData => {
+                const features = (geojsonData && geojsonData.features) || [];
+                countryData = processFeatures(features);
+                if (countryData.length === 0) {
+                    countryDisplay.innerText = "No country data available.";
+                    return;
+                }
                 startGame();
             })
             .catch(error => {
-                console.error('Error fetching country data:', error);
+                console.error('Error loading country data:', error);
                 countryDisplay.innerText = "Failed to load country data.";
             });
     }
@@ -298,9 +266,6 @@
     function highlightCountry(country) {
         if (!countryLayer || !country) return;
 
-        // Match on ISO 3-letter code; the geojson's `name` differs from
-        // restcountries `name.common` for many countries (e.g. "United
-        // States of America" vs "United States", "Dominican Rep.").
         const targetCode = country.code ? country.code.toUpperCase() : null;
         const targetName = country.country ? country.country.toLowerCase() : null;
 
@@ -341,6 +306,11 @@
         createButtons();
         loadCountryData();
     }
+
+    countryFlag.addEventListener('error', () => {
+        // Hide rather than show a broken-image icon if the flag CDN fails.
+        countryFlag.hidden = true;
+    });
 
     startButton.addEventListener("click", () => {
         splashScreen.style.display = "none";
