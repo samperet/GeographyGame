@@ -283,6 +283,10 @@
                 disableDefaultUI: true,
                 draggable: false,
                 keyboardShortcuts: false,
+                // Ocean blue. Shown wherever base tiles aren't drawn (and the
+                // whole div if tile auth fails), so the gold GeoJSON countries
+                // always sit on blue water rather than a blank/gold background.
+                backgroundColor: WATER_COLOR,
                 styles: mapStyle
             });
             countryLayer = new google.maps.Data();

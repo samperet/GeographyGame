@@ -267,6 +267,7 @@ body {
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 14px;
     overflow: hidden;
+    background-color: #74c0e3;
     box-shadow: 0 4px 14px rgba(40, 80, 120, 0.15);
     flex: 0 0 auto;
 }
