@@ -17,22 +17,23 @@
         'Kosovo': 'xk'
     };
 
-    // Bright "atlas" palette: cream land on a sky-blue ocean, with a vivid
-    // coral highlight for the answer country (set in the GeoJSON layer).
-    const LAND_COLOR = '#ffe0a3';
-    const LAND_STROKE = '#ffffff';
-    const HIGHLIGHT_COLOR = '#ef476f';
+    // Vintage-atlas palette: warm golden land on a saturated sky-blue
+    // ocean, with caramel-brown country borders for clean separation.
+    // The answer country highlights in vivid coral with a white border.
+    const LAND_COLOR = '#f6c971';
+    const LAND_STROKE = '#a86a2c';
+    const HIGHLIGHT_COLOR = '#e63946';
     const HIGHLIGHT_STROKE = '#ffffff';
+    const WATER_COLOR = '#74c0e3';
 
     const mapStyle = [
         { elementType: "labels", stylers: [{ visibility: "off" }] },
-        { featureType: "water",          elementType: "geometry", stylers: [{ color: "#9ed8f0" }] },
-        { featureType: "landscape",      elementType: "geometry", stylers: [{ color: "#ffe0a3" }] },
+        { featureType: "water",          elementType: "geometry", stylers: [{ color: WATER_COLOR }] },
+        { featureType: "landscape",      elementType: "geometry", stylers: [{ color: LAND_COLOR }] },
         { featureType: "road",           stylers: [{ visibility: "off" }] },
         { featureType: "poi",            stylers: [{ visibility: "off" }] },
         { featureType: "transit",        stylers: [{ visibility: "off" }] },
-        { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#ffffff" }, { weight: 0.6 }] },
-        { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#ffffff" }, { weight: 1 }] }
+        { featureType: "administrative", elementType: "geometry", stylers: [{ visibility: "off" }] }
     ];
 
     const countryDisplay = document.getElementById("country");
@@ -257,8 +258,8 @@
         return {
             fillColor: LAND_COLOR,
             strokeColor: LAND_STROKE,
-            strokeWeight: 1,
-            fillOpacity: 0.9
+            strokeWeight: 0.8,
+            fillOpacity: 1
         };
     }
 
@@ -365,32 +366,71 @@
         return countryData[queue.pop()];
     }
 
-    function streakAnnotation(s) {
-        if (s >= 20) return { label: ' — LEGENDARY!', cls: 'streak-legendary' };
-        if (s >= 10) return { label: ' — BLAZING', cls: 'streak-blazing' };
-        if (s >= 5)  return { label: ' — on fire', cls: 'streak-on-fire' };
-        return null;
+    function streakClass(s) {
+        if (s >= 20) return 'streak-legendary';
+        if (s >= 10) return 'streak-blazing';
+        if (s >= 5)  return 'streak-on-fire';
+        return '';
     }
 
-    function updateScoreboard() {
-        const note = streakAnnotation(streak);
-        const base =
-            'Score: ' + score + '/' + attempts +
-            ' · Streak: ' + streak +
-            ' (Best: ' + bestStreak + ')';
-        if (note) {
-            scoreboard.innerHTML =
-                escapeHtml(base) +
-                '<span class="' + note.cls + '">' + escapeHtml(note.label) + '</span>';
+    const streakRollerEl = document.getElementById('streak-roller');
+    const scoreValueEl = scoreboard.querySelector('.value-score');
+    const attemptsValueEl = scoreboard.querySelector('.value-attempts');
+    const bestValueEl = scoreboard.querySelector('.value-best');
+
+    function createDigitSlot(initialDigit) {
+        const slot = document.createElement('div');
+        slot.className = 'streak-digit';
+        const roll = document.createElement('div');
+        roll.className = 'streak-digit-roll';
+        for (let i = 0; i <= 9; i++) {
+            const s = document.createElement('span');
+            s.textContent = i;
+            roll.appendChild(s);
+        }
+        // Initial position set before insertion — no transition on first paint.
+        roll.style.transition = 'none';
+        roll.style.transform = 'translateY(-' + (initialDigit * 1.35) + 'em)';
+        slot.appendChild(roll);
+        return slot;
+    }
+
+    function setStreakRoller(value) {
+        const str = String(Math.max(0, Math.floor(value)));
+        const targetDigits = str.split('').map(Number);
+        const oldCount = streakRollerEl.children.length;
+        const newCount = targetDigits.length;
+
+        if (oldCount !== newCount) {
+            // Rebuild slots without animation when the digit count changes.
+            streakRollerEl.innerHTML = '';
+            const created = targetDigits.map(d => {
+                const slot = createDigitSlot(d);
+                streakRollerEl.appendChild(slot);
+                return slot;
+            });
+            // Force layout, then re-enable transitions for subsequent updates.
+            void streakRollerEl.offsetHeight;
+            created.forEach(slot => {
+                const roll = slot.querySelector('.streak-digit-roll');
+                roll.style.transition = '';
+            });
         } else {
-            scoreboard.textContent = base;
+            targetDigits.forEach((digit, idx) => {
+                const roll = streakRollerEl.children[idx].querySelector('.streak-digit-roll');
+                roll.style.transform = 'translateY(-' + (digit * 1.35) + 'em)';
+            });
         }
     }
 
-    function escapeHtml(s) {
-        return String(s).replace(/[&<>"']/g, ch => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[ch]));
+    function updateScoreboard() {
+        scoreValueEl.textContent = score;
+        attemptsValueEl.textContent = attempts;
+        bestValueEl.textContent = bestStreak;
+        setStreakRoller(streak);
+        streakRollerEl.classList.remove('streak-on-fire', 'streak-blazing', 'streak-legendary');
+        const cls = streakClass(streak);
+        if (cls) streakRollerEl.classList.add(cls);
     }
 
     function animateOnce(el, cls) {
@@ -565,6 +605,7 @@
         if (gameInitialized) return;
         gameInitialized = true;
         createButtons();
+        updateScoreboard();
         loadCountryData();
     }
 

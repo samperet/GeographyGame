@@ -19,7 +19,11 @@
     <!-- Game Container -->
     <div id="game-container">
         <div id="top-bar">
-            <div id="scoreboard" aria-live="polite"></div>
+            <div id="scoreboard" aria-live="polite">
+                <span class="board-text">Score <strong class="value-score">0</strong>/<strong class="value-attempts">0</strong></span>
+                <span class="board-text">Streak <span id="streak-roller" class="streak-roller" aria-label="Current streak"></span></span>
+                <span class="board-text">Best <strong class="value-best">0</strong></span>
+            </div>
             <button id="mute-button" type="button" aria-label="Toggle sound" aria-pressed="false" title="Toggle sound (M)">
                 <span class="mute-icon" aria-hidden="true">&#9835;</span>
                 <span class="mute-label">Sound</span>
