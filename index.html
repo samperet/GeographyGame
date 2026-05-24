@@ -2,17 +2,13 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <title>Geography Game</title>
     <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-    <button id="mute-button" class="mute-button" type="button" aria-label="Toggle sound" aria-pressed="false" title="Toggle sound (M)">
-        <span class="mute-glyph">&#9835;</span>
-    </button>
-
     <!-- Splash Screen -->
     <div id="splash-screen">
         <div id="splash-title">Geography Game</div>
@@ -22,17 +18,24 @@
 
     <!-- Game Container -->
     <div id="game-container">
-        <h1>Geography Game</h1>
-        <div id="scoreboard" aria-live="polite"></div>
-        <div id="country">Loading...</div>
-        <img id="country-flag" src="" alt="Country Flag" hidden />
-        <div id="continent-buttons" role="group" aria-label="Continent choices"></div>
+        <div id="top-bar">
+            <div id="scoreboard" aria-live="polite"></div>
+            <button id="mute-button" type="button" aria-label="Toggle sound" aria-pressed="false" title="Toggle sound (M)">
+                <span class="mute-icon" aria-hidden="true">&#9835;</span>
+                <span class="mute-label">Sound</span>
+            </button>
+        </div>
+        <div id="map"></div>
+        <div id="question-row">
+            <img id="country-flag" src="" alt="" hidden />
+            <div id="country">Loading&hellip;</div>
+        </div>
         <div id="result" aria-live="polite" role="status"></div>
         <div id="action-buttons">
             <button id="skip-button" class="action-button" type="button" title="Skip (S)">Skip</button>
             <button id="next-button" class="action-button action-button-primary" type="button" hidden title="Next (Space)">Next</button>
         </div>
-        <div id="map"></div>
+        <div id="continent-buttons" role="group" aria-label="Continent choices"></div>
     </div>
 
     <script src="game.js"></script>

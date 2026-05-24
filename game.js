@@ -17,16 +17,22 @@
         'Kosovo': 'xk'
     };
 
+    // Bright "atlas" palette: cream land on a sky-blue ocean, with a vivid
+    // coral highlight for the answer country (set in the GeoJSON layer).
+    const LAND_COLOR = '#ffe0a3';
+    const LAND_STROKE = '#ffffff';
+    const HIGHLIGHT_COLOR = '#ef476f';
+    const HIGHLIGHT_STROKE = '#ffffff';
+
     const mapStyle = [
-        { featureType: "water",          elementType: "geometry", stylers: [{ color: "#193341" }] },
-        { featureType: "landscape",      elementType: "geometry", stylers: [{ color: "#2c5a71" }] },
-        { featureType: "road",           elementType: "geometry", stylers: [{ color: "#29768a" }, { lightness: -37 }] },
-        { featureType: "poi",            elementType: "geometry", stylers: [{ color: "#406d80" }] },
-        { featureType: "transit",        elementType: "geometry", stylers: [{ color: "#406d80" }] },
-        { elementType: "labels.text.stroke", stylers: [{ visibility: "on" }, { color: "#3e606f" }, { weight: 2 }, { gamma: 0.84 }] },
-        { elementType: "labels.text.fill",   stylers: [{ color: "#ffffff" }] },
-        { featureType: "administrative", elementType: "geometry", stylers: [{ weight: 0.6 }, { color: "#1a3541" }] },
-        { elementType: "geometry",       stylers: [{ color: "#1a3541" }] }
+        { elementType: "labels", stylers: [{ visibility: "off" }] },
+        { featureType: "water",          elementType: "geometry", stylers: [{ color: "#9ed8f0" }] },
+        { featureType: "landscape",      elementType: "geometry", stylers: [{ color: "#ffe0a3" }] },
+        { featureType: "road",           stylers: [{ visibility: "off" }] },
+        { featureType: "poi",            stylers: [{ visibility: "off" }] },
+        { featureType: "transit",        stylers: [{ visibility: "off" }] },
+        { featureType: "administrative", elementType: "geometry", stylers: [{ color: "#ffffff" }, { weight: 0.6 }] },
+        { featureType: "administrative.country", elementType: "geometry.stroke", stylers: [{ color: "#ffffff" }, { weight: 1 }] }
     ];
 
     const countryDisplay = document.getElementById("country");
@@ -87,23 +93,42 @@
         let musicTimer = null;
 
         function ensureCtx() {
-            if (ctx) {
-                if (ctx.state === 'suspended') ctx.resume();
-                return ctx;
+            if (!ctx) {
+                const AC = window.AudioContext || window.webkitAudioContext;
+                if (!AC) return null;
+                try { ctx = new AC(); } catch (e) { return null; }
+                masterGain = ctx.createGain();
+                masterGain.gain.value = muted ? 0 : 0.6;
+                masterGain.connect(ctx.destination);
+                musicGain = ctx.createGain();
+                musicGain.gain.value = 0.18;
+                musicGain.connect(masterGain);
+                sfxGain = ctx.createGain();
+                sfxGain.gain.value = 0.55;
+                sfxGain.connect(masterGain);
             }
-            const AC = window.AudioContext || window.webkitAudioContext;
-            if (!AC) return null;
-            ctx = new AC();
-            masterGain = ctx.createGain();
-            masterGain.gain.value = muted ? 0 : 0.6;
-            masterGain.connect(ctx.destination);
-            musicGain = ctx.createGain();
-            musicGain.gain.value = 0.18;
-            musicGain.connect(masterGain);
-            sfxGain = ctx.createGain();
-            sfxGain.gain.value = 0.55;
-            sfxGain.connect(masterGain);
+            if (ctx.state === 'suspended' && typeof ctx.resume === 'function') {
+                ctx.resume().catch(() => {});
+            }
             return ctx;
+        }
+
+        // iOS Safari needs an actually-played buffer source within a user
+        // gesture before it will produce sound. Calling resume() alone isn't
+        // always enough.
+        async function unlock() {
+            const c = ensureCtx();
+            if (!c) return;
+            if (c.state === 'suspended') {
+                try { await c.resume(); } catch (e) { /* ignore */ }
+            }
+            try {
+                const buf = c.createBuffer(1, 1, 22050);
+                const src = c.createBufferSource();
+                src.buffer = buf;
+                src.connect(c.destination);
+                src.start(0);
+            } catch (e) { /* ignore */ }
         }
 
         function setMuted(v) {
@@ -202,7 +227,7 @@
         }
 
         return {
-            ensureCtx, setMuted,
+            ensureCtx, unlock, setMuted,
             correct, wrong, skip, next, fanfare,
             startMusic, stopMusic
         };
@@ -211,6 +236,8 @@
     function applyMute() {
         muteButton.classList.toggle('muted', muted);
         muteButton.setAttribute('aria-pressed', String(muted));
+        const label = muteButton.querySelector('.mute-label');
+        if (label) label.textContent = muted ? 'Muted' : 'Sound';
         audio.setMuted(muted);
     }
 
@@ -228,10 +255,10 @@
 
     function defaultFeatureStyle() {
         return {
-            fillColor: 'gray',
-            strokeColor: 'black',
+            fillColor: LAND_COLOR,
+            strokeColor: LAND_STROKE,
             strokeWeight: 1,
-            fillOpacity: 0.5
+            fillOpacity: 0.9
         };
     }
 
@@ -384,6 +411,7 @@
         clearCountryHighlight();
         resetButtons();
         nextButton.hidden = true;
+        skipButton.hidden = false;
         skipButton.disabled = false;
         firstTryWrong = false;
 
@@ -399,7 +427,7 @@
 
     function finishRound() {
         disableAllButtons();
-        skipButton.disabled = true;
+        skipButton.hidden = true;
         highlightCountry(currentCountry);
         updateScoreboard();
         nextButton.hidden = false;
@@ -449,7 +477,7 @@
     }
 
     function skipCurrent() {
-        if (!currentCountry || nextButton.hidden === false) return;
+        if (!currentCountry || skipButton.hidden) return;
         if (!firstTryWrong) streak = 0;
         firstTryWrong = true;
         resultDisplay.innerText = "The answer is " + currentCountry.continent + ".";
@@ -507,10 +535,11 @@
             const nameMatch = targetName && featureName && featureName.toLowerCase() === targetName;
             if (codeMatch || nameMatch) {
                 return {
-                    fillColor: 'yellow',
-                    strokeColor: 'black',
-                    strokeWeight: 1,
-                    fillOpacity: 0.8
+                    fillColor: HIGHLIGHT_COLOR,
+                    strokeColor: HIGHLIGHT_STROKE,
+                    strokeWeight: 2,
+                    fillOpacity: 1,
+                    zIndex: 2
                 };
             }
             return defaultFeatureStyle();
@@ -558,7 +587,7 @@
         }
 
         // Splash screen: Enter or Space to start.
-        if (gameContainer.style.display !== 'block') {
+        if (!gameContainer.classList.contains('active')) {
             if (e.key === 'Enter' || e.key === ' ') {
                 startButton.click();
                 e.preventDefault();
@@ -575,7 +604,7 @@
             return;
         }
         if (e.key === 's' || e.key === 'S') {
-            if (!skipButton.disabled) {
+            if (!skipButton.hidden && !skipButton.disabled) {
                 skipCurrent();
                 e.preventDefault();
             }
@@ -600,11 +629,11 @@
 
     muteButton.addEventListener('click', toggleMute);
 
-    startButton.addEventListener('click', () => {
+    startButton.addEventListener('click', async () => {
         splashScreen.classList.add('fading');
         setTimeout(() => { splashScreen.style.display = 'none'; }, 400);
-        gameContainer.style.display = 'block';
-        audio.ensureCtx();
+        gameContainer.classList.add('active');
+        await audio.unlock();
         if (!muted) audio.startMusic();
         initializeGame();
     });
