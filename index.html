@@ -125,7 +125,7 @@
     <div id="game-container">
         <h1>Geography Game</h1>
         <div id="country">Loading...</div>
-        <img id="country-flag" src="" alt="Country Flag" />
+        <img id="country-flag" src="" alt="Country Flag" style="display:none;" />
         <div id="continent-buttons"></div>
         <div id="result"></div>
         <div id="map"></div>
@@ -144,7 +144,6 @@
         };
         const subregionMapping = {
             'Northern America': 'North America',
-            'Latin America': 'South America',
             'Caribbean': 'North America',
             'Central America': 'North America',
             'South America': 'South America'
@@ -265,11 +264,14 @@
         }
 
         function loadCountryData() {
-            fetch('https://restcountries.com/v3.1/all')
+            // restcountries.com requires `fields` on /all as of late 2024;
+            // omitting it returns HTTP 400 and the game fails to load.
+            fetch('https://restcountries.com/v3.1/all?fields=name,cca3,region,subregion,flags')
                 .then(response => response.json())
                 .then(data => {
                     data.forEach(country => {
                         const name = country?.name?.common;
+                        const cca3 = country?.cca3;
                         const region = country?.region;
                         const subregion = country?.subregion;
                         const flags = country?.flags;
@@ -279,7 +281,7 @@
                                 // handle Americas
                                 continent = subregionMapping[subregion] || 'North America';
                             }
-                            
+
                             // If no recognized continent, skip
                             if (!continent) return;
 
@@ -288,6 +290,7 @@
 
                             countryData.push({
                                 country: name,
+                                code: cca3,
                                 continent: continent,
                                 flagUrl: flagUrl
                             });
@@ -318,6 +321,7 @@
                 countryDisplay.innerText = `Which continent is ${currentCountry.country} in?`;
                 countryFlag.src = currentCountry.flagUrl;
                 countryFlag.alt = `${currentCountry.country} Flag`;
+                countryFlag.style.display = '';
             }
         }
 
@@ -332,7 +336,7 @@
                 disableAllButtons();
                 button.classList.add('correct');
                 playConfetti();
-                highlightCountry(currentCountry.country);
+                highlightCountry(currentCountry);
                 setTimeout(startGame, 3000);
             } else {
                 resultDisplay.innerText = "Try again.";
@@ -368,33 +372,34 @@
             });
         }
 
-        function highlightCountry(countryName) {
-            if (!countryLayer) return;
+        function highlightCountry(country) {
+            if (!countryLayer || !country) return;
 
-            countryLayer.setStyle({
-                fillColor: 'gray',
-                strokeColor: 'black',
-                strokeWeight: 1,
-                fillOpacity: 0.5
-            });
+            // Match on ISO 3-letter code; the geojson's `name` differs from
+            // restcountries `name.common` for many countries (e.g. "United
+            // States of America" vs "United States", "Dominican Rep.").
+            const targetCode = country.code ? country.code.toUpperCase() : null;
+            const targetName = country.country ? country.country.toLowerCase() : null;
 
             countryLayer.setStyle(function(feature) {
+                const featureCode = feature.getProperty('iso_a3');
                 const featureName = feature.getProperty('name');
-                if (featureName && featureName.toLowerCase() === countryName.toLowerCase()) {
+                const codeMatch = targetCode && featureCode && featureCode.toUpperCase() === targetCode;
+                const nameMatch = targetName && featureName && featureName.toLowerCase() === targetName;
+                if (codeMatch || nameMatch) {
                     return {
                         fillColor: 'yellow',
                         strokeColor: 'black',
                         strokeWeight: 1,
                         fillOpacity: 0.8
                     };
-                } else {
-                    return {
-                        fillColor: 'gray',
-                        strokeColor: 'black',
-                        strokeWeight: 1,
-                        fillOpacity: 0.5
-                    };
                 }
+                return {
+                    fillColor: 'gray',
+                    strokeColor: 'black',
+                    strokeWeight: 1,
+                    fillOpacity: 0.5
+                };
             });
         }
 
