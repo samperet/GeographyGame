@@ -17,8 +17,15 @@
 
     // Equirectangular world map rendered as inline SVG from the GeoJSON —
     // no external map provider, so it always renders (no API key/billing).
+    // Colours are set as SVG presentation attributes (not CSS classes) so
+    // the map renders even if the stylesheet is cached/stale or classList
+    // misbehaves on older mobile browsers.
     const MAP_W = 360;
     const MAP_H = 180;
+    const LAND_FILL = '#f6c971';
+    const LAND_STROKE = '#a86a2c';
+    const HILITE_FILL = '#e63946';
+    const HILITE_STROKE = '#ffffff';
     let svgPaths = [];
 
     // DOM
@@ -51,6 +58,13 @@
     let firstTryWrong = false;
     let streak = 0;
     let total = 0;
+
+    // Visibility helpers — use inline display so we never depend on the
+    // [hidden] attribute fighting a CSS `display` rule (the bug that left
+    // the continent buttons on screen during the capital round).
+    function showEl(el) { if (el) { el.removeAttribute('hidden'); el.style.display = ''; } }
+    function hideEl(el) { if (el) { el.style.display = 'none'; } }
+    function isHidden(el) { return !el || el.style.display === 'none'; }
 
     // ---- Persistent state -----------------------------------------------
 
@@ -327,7 +341,10 @@
         const svg = document.createElementNS(ns, 'svg');
         svg.setAttribute('viewBox', '0 0 ' + MAP_W + ' ' + MAP_H);
         svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        svg.classList.add('map-svg');
+        svg.setAttribute('width', '100%');
+        svg.setAttribute('height', '100%');
+        svg.setAttribute('class', 'map-svg');
+        svg.style.display = 'block';
 
         svgPaths = [];
         features.forEach(feature => {
@@ -337,7 +354,10 @@
             if (!d) return;
             const path = document.createElementNS(ns, 'path');
             path.setAttribute('d', d);
-            path.setAttribute('class', 'country');
+            path.setAttribute('fill', LAND_FILL);
+            path.setAttribute('stroke', LAND_STROKE);
+            path.setAttribute('stroke-width', '0.4');
+            path.setAttribute('stroke-linejoin', 'round');
             svg.appendChild(path);
             svgPaths.push({
                 el: path,
@@ -346,7 +366,7 @@
             });
         });
 
-        mapEl.innerHTML = '';
+        mapEl.textContent = '';
         mapEl.appendChild(svg);
     }
 
@@ -356,12 +376,18 @@
         const name = country.country ? country.country.toLowerCase() : null;
         svgPaths.forEach(p => {
             const match = (code && p.code === code) || (name && p.name === name);
-            p.el.classList.toggle('highlight', !!match);
+            p.el.setAttribute('fill', match ? HILITE_FILL : LAND_FILL);
+            p.el.setAttribute('stroke', match ? HILITE_STROKE : LAND_STROKE);
+            p.el.setAttribute('stroke-width', match ? '0.9' : '0.4');
         });
     }
 
     function clearCountryHighlight() {
-        svgPaths.forEach(p => p.el.classList.remove('highlight'));
+        svgPaths.forEach(p => {
+            p.el.setAttribute('fill', LAND_FILL);
+            p.el.setAttribute('stroke', LAND_STROKE);
+            p.el.setAttribute('stroke-width', '0.4');
+        });
     }
 
     // ---- Country data ---------------------------------------------------
@@ -516,15 +542,15 @@
         resultDisplay.style.color = "";
         clearCountryHighlight();
 
-        capitalContainer.hidden = true;
+        hideEl(capitalContainer);
         capitalContainer.innerHTML = '';
-        continentContainer.hidden = false;
+        showEl(continentContainer);
         resetChoiceButtons(continentContainer);
 
-        skipButton.hidden = false;
+        showEl(skipButton);
         skipButton.disabled = false;
-        capitalButton.hidden = true;
-        nextButton.hidden = true;
+        hideEl(capitalButton);
+        hideEl(nextButton);
 
         currentCountry = nextCountry();
         countryDisplay.innerText = "Which continent is " + currentCountry.country + " in?";
@@ -538,11 +564,11 @@
     function finishContinent() {
         phase = 'done';
         disableChoiceButtons(continentContainer);
-        skipButton.hidden = true;
+        hideEl(skipButton);
         highlightCountry(currentCountry);
         // Offer capital round if we know the capital.
-        capitalButton.hidden = !capitalFor(currentCountry);
-        nextButton.hidden = false;
+        if (capitalFor(currentCountry)) showEl(capitalButton); else hideEl(capitalButton);
+        showEl(nextButton);
         updateCounters();
     }
 
@@ -587,7 +613,7 @@
     }
 
     function skipCurrent() {
-        if (phase !== 'continent' || !currentCountry || skipButton.hidden) return;
+        if (phase !== 'continent' || !currentCountry || isHidden(skipButton)) return;
         streak = 0;
         firstTryWrong = true;
         resultDisplay.innerText = "It's in " + currentCountry.continent + ".";
@@ -605,10 +631,10 @@
         phase = 'capital';
 
         countryDisplay.innerText = "What is the capital of " + currentCountry.country + "?";
-        capitalButton.hidden = true;
-        nextButton.hidden = true;
-        skipButton.hidden = true;
-        continentContainer.hidden = true;
+        hideEl(capitalButton);
+        hideEl(nextButton);
+        hideEl(skipButton);
+        hideEl(continentContainer);
 
         const pool = allCapitals.filter(c => c !== correct);
         shuffle(pool);
@@ -623,7 +649,7 @@
             b.addEventListener('click', () => checkCapital(cap, b, correct));
             capitalContainer.appendChild(b);
         });
-        capitalContainer.hidden = false;
+        showEl(capitalContainer);
         resultDisplay.innerText = "";
         resultDisplay.style.color = "";
     }
@@ -651,12 +677,12 @@
             audio.wrong();
         }
         phase = 'done';
-        nextButton.hidden = false;
+        showEl(nextButton);
         updateCounters();
     }
 
     function advance() {
-        if (nextButton.hidden) return;
+        if (isHidden(nextButton)) return;
         audio.next();
         startGame();
     }
@@ -706,15 +732,15 @@
         }
 
         if (e.key === 'Enter' || e.key === ' ') {
-            if (!nextButton.hidden) { advance(); e.preventDefault(); }
+            if (!isHidden(nextButton)) { advance(); e.preventDefault(); }
             return;
         }
         if (e.key === 's' || e.key === 'S') {
-            if (!skipButton.hidden && !skipButton.disabled) { skipCurrent(); e.preventDefault(); }
+            if (!isHidden(skipButton) && !skipButton.disabled) { skipCurrent(); e.preventDefault(); }
             return;
         }
         if (e.key === 'c' || e.key === 'C') {
-            if (!capitalButton.hidden) { startCapitalRound(); e.preventDefault(); }
+            if (!isHidden(capitalButton)) { startCapitalRound(); e.preventDefault(); }
             return;
         }
         if (/^[1-9]$/.test(e.key)) {

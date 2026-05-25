@@ -222,21 +222,21 @@ body {
 
 #reset-button {
     width: 100%;
-    margin-top: 10px;
-    padding: 9px 12px;
+    margin-top: 14px;
+    padding: 15px 14px;
     border: none;
-    border-radius: 9px;
+    border-radius: 11px;
     font: inherit;
-    font-weight: 700;
-    font-size: 0.88em;
+    font-weight: 800;
+    font-size: 1.05em;
     color: #fff;
     cursor: pointer;
     background: linear-gradient(180deg, var(--bad-1), var(--bad-2));
-    box-shadow: var(--shadow-sm);
+    box-shadow: var(--shadow-md);
     transition: transform 0.1s ease, box-shadow 0.2s ease;
 }
 
-#reset-button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+#reset-button:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(225, 29, 72, 0.4); }
 #reset-button:active { transform: translateY(0); }
 
 /* ---------------- Counters ---------------- */
@@ -365,18 +365,10 @@ body {
     display: block;
 }
 
-.map-svg .country {
-    fill: #f6c971;
-    stroke: #a86a2c;
-    stroke-width: 0.8;
-    vector-effect: non-scaling-stroke;
-    transition: fill 0.25s ease;
-}
-
-.map-svg .country.highlight {
-    fill: #e63946;
-    stroke: #ffffff;
-    stroke-width: 1.6;
+/* Colours are applied as presentation attributes in JS; this only adds a
+   smooth fade when a country is highlighted. */
+.map-svg path {
+    transition: fill 0.25s ease, stroke 0.2s ease;
 }
 
 /* ---------------- Question ---------------- */
