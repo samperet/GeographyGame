@@ -29,6 +29,9 @@ body, html {
     overflow-x: hidden;
 }
 
+/* The hidden attribute must win over explicit display rules below. */
+[hidden] { display: none !important; }
+
 body {
     font-family: "Baloo 2", "Trebuchet MS", Arial, sans-serif;
     text-align: center;
@@ -217,6 +220,25 @@ body {
     transform: translateX(18px);
 }
 
+#reset-button {
+    width: 100%;
+    margin-top: 10px;
+    padding: 9px 12px;
+    border: none;
+    border-radius: 9px;
+    font: inherit;
+    font-weight: 700;
+    font-size: 0.88em;
+    color: #fff;
+    cursor: pointer;
+    background: linear-gradient(180deg, var(--bad-1), var(--bad-2));
+    box-shadow: var(--shadow-sm);
+    transition: transform 0.1s ease, box-shadow 0.2s ease;
+}
+
+#reset-button:hover { transform: translateY(-1px); box-shadow: var(--shadow-md); }
+#reset-button:active { transform: translateY(0); }
+
 /* ---------------- Counters ---------------- */
 
 #counters {
@@ -332,9 +354,29 @@ body {
     border: 1px solid rgba(0, 0, 0, 0.08);
     border-radius: 14px;
     overflow: hidden;
-    background-color: #74c0e3;
+    background: linear-gradient(180deg, #8ad2ee, #6bb8e0);
     box-shadow: 0 4px 14px rgba(40, 80, 120, 0.15);
     flex: 0 0 auto;
+}
+
+.map-svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.map-svg .country {
+    fill: #f6c971;
+    stroke: #a86a2c;
+    stroke-width: 0.8;
+    vector-effect: non-scaling-stroke;
+    transition: fill 0.25s ease;
+}
+
+.map-svg .country.highlight {
+    fill: #e63946;
+    stroke: #ffffff;
+    stroke-width: 1.6;
 }
 
 /* ---------------- Question ---------------- */
