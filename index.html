@@ -3,72 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#070b1f" />
     <title>Geography Game</title>
-    <link href="https://fonts.googleapis.com/css2?family=Pacifico&family=Baloo+2:wght@600;800&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@400;500;600;700&family=Lilita+One&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css?v=8">
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
-    <link rel="stylesheet" href="styles.css?v=7">
 </head>
 <body>
+    <!-- Starfield backdrop -->
+    <canvas id="stars" aria-hidden="true"></canvas>
+
     <!-- Splash Screen -->
     <div id="splash-screen">
-        <div id="splash-title">Geography Game</div>
-        <button id="start-button" type="button">Start</button>
+        <div class="splash-planet" aria-hidden="true"></div>
+        <div class="splash-inner">
+            <div class="splash-kicker">The big-screen quiz</div>
+            <h1 id="splash-title"><span class="word-1">Geography</span><span class="word-2">Game</span></h1>
+            <button id="start-button" type="button" autofocus>
+                <span class="start-label">Start Game</span>
+                <span class="start-sub">Press Enter</span>
+            </button>
+            <div class="splash-hint">
+                <span><kbd>1</kbd>–<kbd>7</kbd> answer</span>
+                <span><kbd>S</kbd> skip</span>
+                <span><kbd>C</kbd> capital</span>
+                <span><kbd>F</kbd> fullscreen</span>
+                <span><kbd>M</kbd> music</span>
+            </div>
+        </div>
     </div>
 
-    <!-- Game Container -->
+    <!-- Game -->
     <div id="game-container">
-        <button id="settings-button" type="button" aria-label="Settings" aria-expanded="false" title="Settings">
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" focusable="false">
-                <path fill="currentColor" d="M19.14 12.94a7.49 7.49 0 0 0 .05-.94 7.49 7.49 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.74 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94 0 .32.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.25.12.54.02.68-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
-            </svg>
-        </button>
+        <header id="hud">
+            <div class="hud-stat">
+                <div class="hud-label">Streak</div>
+                <div id="streak-roller" class="roller streak-roller" aria-label="Current streak"></div>
+            </div>
+            <div class="hud-stat">
+                <div class="hud-label">Best</div>
+                <div id="best-roller" class="roller best-roller" aria-label="Best streak"></div>
+            </div>
+            <div class="hud-stat">
+                <div class="hud-label">Total</div>
+                <div id="total-roller" class="roller total-roller" aria-label="Total points"></div>
+            </div>
 
-        <div id="settings-panel" hidden>
+            <button id="settings-button" type="button" aria-label="Settings" aria-expanded="false" title="Settings">
+                <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                    <path fill="currentColor" d="M19.14 12.94a7.49 7.49 0 0 0 .05-.94 7.49 7.49 0 0 0-.05-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54c-.59.24-1.13.56-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.74 8.84a.5.5 0 0 0 .12.64l2.03 1.58c-.03.31-.05.62-.05.94 0 .32.02.63.05.94l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32c.14.24.43.34.68.22l2.39-.96c.49.38 1.03.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.25.12.54.02.68-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8.5a3.5 3.5 0 0 1 0 7Z"/>
+                </svg>
+            </button>
+        </header>
+
+        <div id="settings-panel" role="dialog" aria-label="Settings" hidden>
             <div class="settings-title">Settings</div>
-            <label class="settings-row">
+            <button id="toggle-music" class="settings-row toggle" type="button" aria-pressed="true">
                 <span>Music</span>
-                <input type="checkbox" id="toggle-music" checked />
                 <span class="switch" aria-hidden="true"></span>
-            </label>
-            <label class="settings-row">
+            </button>
+            <button id="toggle-sfx" class="settings-row toggle" type="button" aria-pressed="true">
                 <span>Sound effects</span>
-                <input type="checkbox" id="toggle-sfx" checked />
                 <span class="switch" aria-hidden="true"></span>
-            </label>
+            </button>
+            <button id="fullscreen-button" class="settings-row" type="button">
+                <span>Fullscreen</span>
+                <span class="key-hint" aria-hidden="true">F</span>
+            </button>
             <button id="reset-button" type="button">Reset progress</button>
         </div>
 
-        <div id="counters">
-            <div class="counter">
-                <div class="counter-label">Streak</div>
-                <div id="streak-roller" class="roller streak-roller" aria-label="Current streak"></div>
-            </div>
-            <div class="counter">
-                <div class="counter-label">Total</div>
-                <div id="total-roller" class="roller total-roller" aria-label="Total correct"></div>
-            </div>
-        </div>
+        <main id="stage">
+            <section id="globe-panel" aria-label="Globe">
+                <canvas id="globe"></canvas>
+                <div id="globe-caption" hidden>
+                    <img id="caption-flag" src="" alt="" hidden />
+                    <div class="caption-text">
+                        <div id="caption-name"></div>
+                        <div id="caption-detail"></div>
+                    </div>
+                </div>
+            </section>
 
-        <div id="map"></div>
+            <section id="quiz-panel" aria-label="Quiz">
+                <div id="question-row">
+                    <div id="flag-frame">
+                        <img id="country-flag" src="" alt="" hidden />
+                    </div>
+                    <div id="country">Loading the world&hellip;</div>
+                </div>
 
-        <div id="question-row">
-            <img id="country-flag" src="" alt="" hidden />
-            <div id="country">Loading&hellip;</div>
-        </div>
+                <div id="result" aria-live="polite" role="status"></div>
 
-        <div id="result" aria-live="polite" role="status"></div>
+                <div id="continent-buttons" class="choice-grid continent-grid" role="group" aria-label="Continent choices"></div>
+                <div id="capital-buttons" class="choice-grid capital-grid" role="group" aria-label="Capital choices" hidden></div>
 
-        <div id="action-buttons">
-            <button id="skip-button" class="action-button action-button-skip" type="button" title="Skip (S)">Skip</button>
-            <button id="capital-button" class="action-button action-button-capital" type="button" hidden title="Guess capital (C)">Guess Capital</button>
-            <button id="next-button" class="action-button action-button-primary" type="button" hidden title="Next (Space)">Next</button>
-        </div>
+                <div id="action-buttons">
+                    <button id="skip-button" class="action-button action-button-skip" type="button" title="Skip (S)">
+                        Skip <span class="key-hint" aria-hidden="true">S</span>
+                    </button>
+                    <button id="capital-button" class="action-button action-button-capital" type="button" hidden title="Guess capital (C)">
+                        Guess Capital <span class="key-hint" aria-hidden="true">C</span>
+                    </button>
+                    <button id="next-button" class="action-button action-button-primary" type="button" hidden title="Next (Enter)">
+                        Next <span class="key-hint" aria-hidden="true">&#9166;</span>
+                    </button>
+                </div>
 
-        <div id="continent-buttons" class="choice-grid" role="group" aria-label="Continent choices"></div>
-        <div id="capital-buttons" class="choice-grid" role="group" aria-label="Capital choices" hidden></div>
+                <div id="hint-bar" aria-hidden="true">
+                    <span><kbd>1</kbd>–<kbd>7</kbd> answer</span>
+                    <span><kbd>&larr;</kbd><kbd>&rarr;</kbd> move</span>
+                    <span><kbd>Enter</kbd> select</span>
+                    <span><kbd>F</kbd> fullscreen</span>
+                </div>
+            </section>
+        </main>
     </div>
 
-    <script src="capitals.js?v=7"></script>
-    <script src="game.js?v=7"></script>
+    <!-- Big feedback banner -->
+    <div id="banner" aria-hidden="true"><span id="banner-text"></span></div>
+
+    <script src="capitals.js?v=8"></script>
+    <script src="game.js?v=8"></script>
 </body>
 </html>
